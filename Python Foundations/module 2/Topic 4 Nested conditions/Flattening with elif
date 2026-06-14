@@ -1,0 +1,21 @@
+user_role = "moderator"
+
+if user_role == "admin":
+    print("Full access")
+elif user_role == "moderator":
+    print("Limited admin tools")
+elif user_role == "user":
+    print("Regular access")
+else:
+    print("Guest access")
+
+age = 22
+
+if age < 3:
+    print("Get in Free")
+elif age <= 12:
+    print("Pay $8")
+elif age <= 64:
+    print("Pay $12")
+else:
+    print("Pay $8")

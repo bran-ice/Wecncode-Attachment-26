@@ -1,0 +1,48 @@
+logged_in = True
+is_student = False
+
+if logged_in:
+    print("You can buy a ticket.")
+    if is_student:
+        print("Student price applied.")
+    else:
+        print("Regular price applied.")
+else:
+    print("Please log in to buy tickets.")
+
+authenticated = True
+balance = 50
+withdraw_amount = 20
+
+if authenticated:
+    print("Access granted.")
+    if balance >= withdraw_amount:
+        print("Dispense cash.")
+    else:
+        print("Insufficient funds.")
+else:
+    print("Enter your PIN.")
+
+license_valid = True
+age = 22
+
+if license_valid:
+    print("You may rent a car.")
+    if age >= 25:
+        print("Eligible for premium cars.")
+    else:
+        print("Restricted to standard cars.")
+else:
+    print("Driver's license required.")
+
+membership_valid = True
+overdue_books = 2
+
+if membership_valid:
+    print("Allowed to borrow a book")
+    if overdue_books >= 1:
+        print("Block checkout")
+    else:
+        print("Allow checkout")
+else:
+    print("Membership required")
