@@ -1,0 +1,7 @@
+temperature = 32
+age = 10
+print(temperature > 30)
+print(age < 13)
+
+number_students = 36
+print(number_students > 30)

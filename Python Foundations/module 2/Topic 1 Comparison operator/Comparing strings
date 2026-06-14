@@ -1,0 +1,9 @@
+print("apple" < "banana")
+print("Apple" == "apple")
+print("apple" < "Apple")
+print("banana" == "Banana")
+
+code1 = "AB123"
+code2 = "ab123"
+print(code1 > code2)
+print(code1 == code2)
