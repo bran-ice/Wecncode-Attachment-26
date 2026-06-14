@@ -1,0 +1,12 @@
+age = 20
+if age >= 18:
+    print("You can vote")
+
+age = 16
+if age >= 18:
+    print("You can vote")
+
+points = 1200
+if points >= 1000:
+   print("You get a loyalty gift")
+

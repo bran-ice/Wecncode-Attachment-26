@@ -1,0 +1,12 @@
+balance = 30
+price = 20
+if balance >= price:
+    print("Purchase complete")
+else:
+    print("Insufficient funds")
+
+age = 15
+if age < 13:
+    print("Free ticket")
+else:
+    print("Ticket required")
