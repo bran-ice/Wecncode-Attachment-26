@@ -1,0 +1,10 @@
+temperature = 32
+is_humid = False
+is_raining = False
+
+if (temperature > 30 or is_humid) and not is_raining:
+    print("Run the sprinkler")
+else:
+    print("Don't run the sprinkler")
+
+print("Condition ->", (temperature > 30 or is_humid) and not is_raining)
