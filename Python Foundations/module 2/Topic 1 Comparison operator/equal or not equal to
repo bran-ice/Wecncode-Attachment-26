@@ -1,0 +1,16 @@
+score = 100
+print(score == 100)
+name = "alice"
+print(name == "admin")
+print(name != "admin")
+
+score = 95
+print(score == 100)
+print(score != 100)
+name = "Admin"
+print(name == "admin")
+print(name != "admin")
+
+
+
+
