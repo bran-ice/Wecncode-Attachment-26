@@ -1,0 +1,12 @@
+x = 42
+y = "hello"
+print(type(x))
+print(type(y))
+a = True
+b = 3.14
+print(type(a))
+print(type(b))
+a = 7
+b = 7.0
+print(type(a))
+print(type(b))

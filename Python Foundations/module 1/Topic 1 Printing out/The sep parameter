@@ -1,0 +1,3 @@
+print("a", "b", "c", sep="-")
+print("Hello", "World", sep="")
+print("BUG", "101", "2026", sep="-")

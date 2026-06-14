@@ -1,0 +1,7 @@
+reference = "TR-5567"
+agent = "Lena Park"
+passengers = 2
+print(reference , agent , passengers ,sep="|" )
+
+
+

@@ -1,0 +1,4 @@
+Distance = float(input("What is the distance in kilometres?"))
+cost_per_kilometre = 1.8
+estimated_fare = Distance * cost_per_kilometre
+print("Estimated fare:" , estimated_fare)

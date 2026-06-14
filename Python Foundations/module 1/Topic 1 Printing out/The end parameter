@@ -1,0 +1,6 @@
+print("Hello", end=" ")
+print("World")
+print("Loading", end="...")
+print("Done")
+print("Question:", end=" ")
+print("What is 2+2?")

@@ -1,0 +1,12 @@
+# This stores a greeting message
+message = "Hello, world!"  # message text
+print(message)  # print the message
+message = "Hello, world!"
+# message = "Goodbye, world!"
+print(message)
+# Price of the item in dollars
+price = 30.00
+# Sales tax rate (8%)
+tax_rate = 0.08
+total = price + price * tax_rate
+print(total)  # print the total cost

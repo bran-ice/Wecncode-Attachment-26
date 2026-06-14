@@ -1,0 +1,4 @@
+first_name = "Alice"
+print(first_name)
+todays_special = "french beans"
+print(todays_special)

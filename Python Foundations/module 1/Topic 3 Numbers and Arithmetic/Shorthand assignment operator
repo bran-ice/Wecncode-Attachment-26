@@ -1,0 +1,16 @@
+count = 10
+count += 5
+print(count)
+count -= 3
+print(count)
+count *= 2
+print(count)
+count /= 4
+print(count)
+
+copies = 120
+copies -= 27
+copies += 40
+copies *= 0.7
+copies -= 3
+print(copies)

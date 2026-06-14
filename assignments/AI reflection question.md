@@ -1,0 +1,7 @@
+# Assignment 3: Reflection Paper
+**Course/Topic:** AI Security & Personal Reflection
+**Author:** Branice Nafula
+
+To me, Artificial Intelligence is no longer just a distant concept or a collection of lines of code; it is an active, shaping force in my everyday life. From optimizing the development tools I use for software projects on GitHub to driving advancements in industrial automation, AI represents an incredible catalyst for efficiency and innovation. It feels like a personalized collaborative partner that augments how I learn, program, and think about engineering challenges. 
+
+However, this deep integration is exactly why I care intensely about securing it. As we hand over more responsibilities to autonomous systems, the surface area for risk expands exponentially. Securing AI isn't just an abstract corporate policy or a problem for cybersecurity specialists—it is deeply personal. An insecure AI model can be manipulated to leak sensitive user data, produce corrupted code vulnerabilities, or compromise physical automated systems. For a developer or an engineer, trusting an intelligent system means ensuring that its training data remains uncorrupted and its decision-making loops are protected against malicious exploits. Ultimately, caring about AI security means safeguarding our privacy, ensuring technical reliability, and defending the integrity of the digital future we are actively building.

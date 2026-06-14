@@ -1,0 +1,24 @@
+print(len("Hello"))
+print(len(""))
+
+fruits = ["apple", "banana", "cherry"]
+print(len(fruits))
+print(len("Hello World"))
+print(len(" "))
+items = ["hi", "", "bye"]
+print(len(items))
+print(len("Hello World"))   # space between Hello and World counts
+print(len(" "))             # a single space is length 1
+print(len("  a  "))         # two leading + one character + two trailing => length 5
+print(len("Hello  World"))  # two spaces between words count as 2 characters
+print(len("notebook"))      # length of a single item string
+todays_special = "drink"
+print("Todays special" , todays_special)
+s = "Hello"
+print(len(s))
+
+print(len("Hello"))
+
+print(len([1, 2, 3]))
+email_address = "branicenafula6@gmail.com"
+print("Email address length" , len(email_address))

@@ -1,0 +1,7 @@
+filename = "report.txt"
+print("About to open:")
+print(filename)
+song_title = "Twist"
+duration = 3600
+print(song_title)
+print(duration)

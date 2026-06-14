@@ -1,0 +1,7 @@
+age = int(input("Enter your age: "))
+print("Next year you will be", age + 1)
+
+a = int(input("How many adult tickets? "))
+b = int(input("How many child tickets? "))
+total_revenue = a * 12 + b * 8
+print("Total revenue is", total_revenue)

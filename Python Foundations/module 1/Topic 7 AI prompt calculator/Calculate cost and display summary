@@ -1,0 +1,12 @@
+AI_prompt = input("Define Neural Networks")
+cost_per_token = float(input("what is the cost per token?"))
+count = len(AI_prompt)
+token_count = int(count) // 4
+total_cost = token_count/1000 * cost_per_token
+print(count)
+print(token_count)
+print(total_cost)
+
+
+print("Prompt Cost Summary")
+print("Original prompt:" , AI_prompt , "Character count:" , count ,"Token estimate:" , token_count , "Total cost:" , total_cost , sep=",")
