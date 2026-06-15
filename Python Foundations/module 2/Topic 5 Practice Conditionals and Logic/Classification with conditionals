@@ -1,0 +1,10 @@
+package_weight = int(input("What is the Package weight in kilograms?"))
+
+if package_weight <= 5:
+   print("Package weight:" , package_weight , "kg" , "-" , "Category:" , "Light" , "(0 - 5)")
+elif package_weight <= 20:
+   print("Package weight:" , package_weight , "kg" , "-" , "Category:" , "Medium" , "(6 - 20)")
+elif package_weight <= 50:
+   print("Package weight:" , package_weight , "kg" , "-" , "Category:" , "Heavy" , "(21 -50)")
+else:
+   print("Package weight:" , package_weight , "kg" , "-" , "Category:" , "Oversized" , "(> 50)") 

@@ -1,0 +1,7 @@
+distance = int(input("What is the distance from the depo in kilometres?"))
+is_fragile_items = input("Are the items fragile? (yes/no) ")
+normalised = is_fragile_items .strip() .lower()
+if normalised == "yes" and distance > 100:
+    print("Priority - Fragile Longhaul")
+else:
+    print("Priority - Longhaul")

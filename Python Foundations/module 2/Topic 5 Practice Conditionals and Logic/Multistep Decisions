@@ -1,0 +1,12 @@
+Customers_name = input("What is the customers name?")
+weight = int(input("What is the weight in kilograms?"))
+rush_fee = input("Does the customer pay rush fee? (yes/no)")
+normalised = rush_fee .strip() .lower()
+if normalised == "yes" and weight > 100:
+    print("Hello" , Customers_name ,"your shipment is classified as" , "Heavy - Rush")
+elif normalised == "yes" and weight <100:
+    print("Hello" , Customers_name ,"your shipment is classified as" , "Light - Rush")
+elif normalised == "no" and weight > 100:
+    print("Hello" , Customers_name , "your shipment is classified as" , "Heavy - Standard")
+else:
+    print("Hello" , Customers_name , "your shipment is classified as" ,  "Light - Standard")
