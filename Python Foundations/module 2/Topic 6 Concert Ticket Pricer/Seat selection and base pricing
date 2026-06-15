@@ -1,0 +1,10 @@
+seat_zone = input("What is your seat zone? (VIP/Floor/Balcony)")
+normalised = seat_zone .strip() .lower()
+if normalised == "vip":
+   print("VIP" , "Base ticket:" , 5000)
+elif normalised == "floor":
+    print("Floor" , "Base ticket:" , 3000)
+elif normalised == "balcony":
+     print("Balcony" , "Base ticket:" , 1200)
+else:
+     print("Invalid entry" , "error")
