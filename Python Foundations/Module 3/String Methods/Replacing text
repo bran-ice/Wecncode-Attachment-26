@@ -1,0 +1,11 @@
+sentence = "the quick brown fox jumps over the lazy dog the"
+new_sentence = sentence.replace("the", "a")
+print(new_sentence)
+print(sentence)
+
+sentence = "The the THE the"
+print(sentence.replace("the", "a"))
+
+CSV_header = "First Name,Last Name,Email Address"
+new_CSV_header = CSV_header.replace(" " , "_")
+print(new_CSV_header)
