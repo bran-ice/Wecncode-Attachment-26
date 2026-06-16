@@ -1,0 +1,20 @@
+price = 19.99
+quantity = 3
+name = "amelia"
+
+print(f"Total: ${price * quantity}")
+print(f"Name: {name.upper()}")
+
+price = 12.50
+quantity = 4
+discount = 0.10
+name = "amelia"
+
+print(f"Subtotal: ${price * quantity}")
+print(f"After 10% discount: ${price * quantity * (1 - discount)}")
+print(f"Customer: {name.title()}")
+
+students_name = "Branice"
+total_test_score = 240
+number_tests = 3
+print(f"Students name: {students_name.upper()} , avg scaore: {total_test_score / number_tests}")
