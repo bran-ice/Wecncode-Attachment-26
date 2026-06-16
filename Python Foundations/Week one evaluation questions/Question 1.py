@@ -4,8 +4,8 @@ quantity = int(input("how many were bought"))
 shipping_fee = float(input("What is the shipping fee?"))
 subtotal = unit_price * quantity
 grandtotal = subtotal + shipping_fee
-points = grandtotal // 10
+points = int(grandtotal // 10)
 print("Product:" , product_name)
-print("Subtotal: $" , subtotal)
-print("Grandtotal: $" , grandtotal)
+print(f"Subtotal: ${subtotal}" )
+print(f"Grand Total: ${grandtotal}")
 print("Loyalty Points:" , points)
