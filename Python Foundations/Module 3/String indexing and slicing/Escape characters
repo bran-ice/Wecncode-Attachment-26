@@ -1,0 +1,14 @@
+print("Line 1\nLine 2")
+print("Column1\tColumn2")
+print("C:\\Users\\You")
+
+print("Jane Doe\n456 Oak Lane\nSpringfield, IL 62704")
+
+print("Item\tPrice")
+print("Coffee\t$2.50")
+print("Tea\t$1.75")
+print("Save files to: C:\\Reports\\2026")
+
+print("Discoveries")
+print("\tlife is a journey")
+print("no manual:just his will\\")

@@ -1,0 +1,9 @@
+text = "international"
+print(text[len(text)-3:])
+
+phone_number = "0743434089"
+print(phone_number[len(phone_number) -4:])
+
+phone = "0743434089"
+start = (len(phone) - 3) // 2
+print(phone[start:start + 3])
