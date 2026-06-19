@@ -1,0 +1,9 @@
+numbers = [10, 20, 30, 40]
+print(numbers)
+numbers.reverse()
+print(numbers)
+
+IDs = [42, 65, 56, 46]
+print(IDs)
+IDs.reverse()
+print(IDs)
