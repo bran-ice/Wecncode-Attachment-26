@@ -1,0 +1,25 @@
+prices = [2.99, 5.49, 1.50]
+total = 0
+for price in prices:
+    total += price
+print(total)
+prices = [2.99, 5.49, 1.50]
+total = 10  # start with an existing balance
+for price in prices:
+    total += price
+print(total)
+nums = [1, 2, 3, 4]
+doubled = []
+for n in nums:
+    doubled += [n * 2]
+print(doubled)
+
+scores = [53, 57, 69, 86]
+total = 0
+count = 0
+for score in scores:
+    total += score
+for n in count:
+    count += 1
+average = total / n
+print(average)
