@@ -29,3 +29,18 @@ print(products["SKU300"]["price"])  # direct access by SKU
 # Iterate through all products by label
 for sku, info in products.items():
     print(sku, info["name"], info["stock"])
+
+route = ['TN123', 'TN456', 'TN789']
+
+packages = {
+  'TN123': {'recipient': 'Alice', 'address': '123 Maple', 'notes': 'leave at door'},
+  'TN456': {'recipient': 'Bob', 'address': '456 Oak', 'notes': ''},
+  'TN789': {'recipient': 'Cara', 'address': '789 Pine', 'notes': 'signature required'},
+}
+
+# driver follows the route in strict order
+for tid in route:
+    print(tid, packages[tid])
+
+# dispatcher looks up a package by tracking number
+print(packages['TN456'])
