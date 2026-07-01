@@ -1,0 +1,15 @@
+{
+    "credentials": {
+        "user_email": "branicenafula6@gmail.com",
+        "password": "1668bw"
+    },
+    "professional_info": {
+        "name": "Branice Nafula",
+        "skills": [
+            "Python",
+            "SQL",
+            "AI engineering",
+            "frontend developer"
+        ]
+    }
+}
