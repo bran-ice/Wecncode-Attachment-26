@@ -1,0 +1,6 @@
+ISBN, title, quantity, price
+9780143127741, The Night Watch , 12 , 9.99
+9780553382563, Deep Work,5,15.50
+9780307271037, The Road, 20 , 8.75
+9780671027032, Beloved ,7,12.40
+9780140449136, The Odyssey, 10, 11.25

@@ -1,0 +1,6 @@
+Ugali, 25.50
+Kunde, 20.50
+Spinach, 35.00
+Burger, 115.65
+Fries, 90.50
+Chicken wings, 110.00

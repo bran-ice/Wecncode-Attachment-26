@@ -1,0 +1,17 @@
+file = open("Python Foundations/module 7 File and error handling/Topic 2 Reading files/data.txt")
+content = file.read()
+file.close()
+print(content)
+
+file = open("Python Foundations/module 7 File and error handling/Topic 2 Reading files/data.txt")
+content = file.read()
+file.close()
+print("----FILE START----")
+print(content)
+print("----FILE END----")
+
+file = open("Python Foundations/module 7 File and error handling/Topic 2 Reading files/report.txt")
+content = file.read()
+file.close()
+print("Report loaded")
+print(content)
