@@ -1,4 +1,4 @@
-[
+{
   {
     "user_id": "SAF-571131-KE",
     "tx_id": "TXN-86116",
@@ -95,4 +95,4 @@
     "merchant": null,
     "timestamp": "2026-07-14T09:44:45"
   }
-]
+}
