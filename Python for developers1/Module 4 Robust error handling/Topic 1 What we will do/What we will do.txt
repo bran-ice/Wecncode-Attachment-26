@@ -1,0 +1,4 @@
+in this module we'll focus on writing code that handles failure deliberately instead of letting programs crash. We'll cover how to signal a problem with the raise keyword, how to guarantee cleanup runs no matter what using finally, and how to wrap a low-level error in a clearer one while preserving the original cause so debugging stays possible. We'll design our own error types in a custom exception hierarchy so handlers can access the specific details they need, and we'll look at how Python's built-in exception tree influences which errors to catch where.
+
+
+We'll also talk about when to prefer the EAFP style (try first, ask forgiveness later) versus checking before acting, so your error handling stays both safe and idiomatic. Finally, we'll put these pieces together by building a Data Importer that validates messy employee records and produces a clean error report you can act on.
