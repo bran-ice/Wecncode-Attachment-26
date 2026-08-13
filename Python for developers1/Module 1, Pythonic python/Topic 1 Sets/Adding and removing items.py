@@ -17,3 +17,11 @@ print(colors)
 
 colors.remove("green")
 print("This line will not run if remove() raises an error")
+
+players = {"Zoe", "Max"}
+players.add("Nina")
+print(players)
+players.remove("Max")
+print(players)
+players.discard("Liam")
+print(players)

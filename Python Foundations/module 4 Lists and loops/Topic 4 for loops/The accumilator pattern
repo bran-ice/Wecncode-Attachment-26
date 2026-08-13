@@ -19,7 +19,6 @@ total = 0
 count = 0
 for score in scores:
     total += score
-for n in count:
     count += 1
-average = total / n
+average = total / count
 print(average)

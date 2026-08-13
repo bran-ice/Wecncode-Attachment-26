@@ -8,3 +8,35 @@ else:
     print("Don't run the sprinkler")
 
 print("Condition ->", (temperature > 30 or is_humid) and not is_raining)
+
+
+temperature = 22
+is_breezy = True
+is_raining = False
+
+if (temperature < 25 or is_breezy) and not is_raining:
+    print("Open the windows")
+else:
+    print("Keep the windows closed")
+
+print("Condition ->", (temperature < 25 or is_breezy) and not is_raining)
+
+temperature = 28
+is_home = True
+window_open = False
+
+if (temperature > 26 and is_home) and not window_open:
+    print("Turn on the AC")
+else:
+    print("No AC needed")
+
+print("Condition ->", (temperature > 26 and is_home) and not window_open)
+
+house_empty = True
+away_mode = True
+guest_mode = True
+
+if (house_empty or away_mode) and not guest_mode:
+    print("Auto-locking door")
+else:
+    print("Keep door unlocked")

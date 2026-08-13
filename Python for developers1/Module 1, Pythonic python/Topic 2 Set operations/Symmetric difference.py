@@ -11,3 +11,8 @@ backend = {"Python", "JavaScript", "TypeScript", "Go"}
 
 unique_to_each = frontend ^ backend
 print(unique_to_each)
+
+homework1 = {"Richard", "Precious", "Hope"}
+homework2 = {"Richard", "Nevina", "Hope"}
+unique_to_each = homework1.symmetric_difference(homework2)
+print(unique_to_each)

@@ -39,4 +39,4 @@ elif choice == "2":
 elif choice == "3":
     print("\nYou picked the Creative bio:\n" + creative_bio)
 else:
-    print("\nThat's not a valid choice. Please run the program again and pick 1, 2, or 3.")
+    print("\nThat's not a valid choice. Please run the program again and pick 1, 2, or 3.") 
