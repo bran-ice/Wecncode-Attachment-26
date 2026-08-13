@@ -21,3 +21,16 @@ try:
         print(items)
 except FileNotFoundError:
     print("File not found")
+
+for item in items:
+    subtotal = sum(item["price"])
+tip = input("Enter the percentage")
+try:
+    tip_percent = int(input("Enter the tip percentage"))
+    people_input = int(input("Enter the number of people"))
+except ValueError:
+    print("Invalid input")
+
+tip_amount = subtotal * (tip_percent / 100)
+grand_total = subtotal + tip_amount
+per_person = grand_total / people_input

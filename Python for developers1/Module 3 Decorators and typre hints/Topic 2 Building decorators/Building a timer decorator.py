@@ -46,6 +46,8 @@ def sort_numbers(numbers):
 
 nums = list(range(100000, 0, -1))
 print(sort_numbers(nums)[:5])
+
+import time
 def timer(func):
     def wrapper(*args, **kwargs):
         start = time.time()

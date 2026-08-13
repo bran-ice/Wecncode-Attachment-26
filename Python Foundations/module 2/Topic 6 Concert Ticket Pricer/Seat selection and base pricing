@@ -8,3 +8,5 @@ elif normalised == "balcony":
      print("Balcony" , "Base ticket:" , 1200)
 else:
      print("Invalid entry" , "error")
+
+    

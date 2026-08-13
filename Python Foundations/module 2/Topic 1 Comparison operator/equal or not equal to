@@ -11,6 +11,10 @@ name = "Admin"
 print(name == "admin")
 print(name != "admin")
 
+players_role = "admin"
+print(players_role == "admin")
+print(players_role != "regular player")
+
 
 
 
