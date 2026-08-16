@@ -287,26 +287,44 @@ speed"), and fusion pays neither penalty. That is the hybrid claim, measured.
 
 ---
 
-## Phase 5 — Grounded generation
+## Phase 5 — Grounded generation ✅ *built — `query/generate.py`, 34 tests green*
 
 **Build**
-- [ ] Prompt with numbered context blocks tagged `[n] {model} p.{page} — {section}`
-- [ ] Instructions: context only, inline `[n]` after each claim, refuse when uncovered
-- [ ] `[n]` parser → `Citation` objects mapped back to real chunks
-- [ ] Refusal path returns what's missing, not a generic apology
-- [ ] Token streaming
-- [ ] Per-call token + cost accounting
+- [x] Prompt with numbered context blocks tagged `[n] {model} p.{page} — {section}`
+- [x] Instructions: context only, inline `[n]` after each claim, refuse when uncovered
+- [x] `[n]` parser → `Citation` objects mapped back to real chunks; out-of-range
+      markers are dropped rather than rendered as dead links
+- [x] Refusal path returns what's missing, not a generic apology — the model emits an
+      `INSUFFICIENT_CONTEXT:` sentinel, stripped before the text reaches the reader
+- [x] Token streaming, with retry up to the first emitted piece and no replay after it
+- [x] Per-call token + cost accounting (`Answer.input_tokens` / `output_tokens`)
+- [x] *Added*: `scripts/ask.py --answer` — the first end-to-end question-to-answer path
+- [x] *Added*: retry/backoff on 429/503, mirroring `ingest/embed.py`
+
+**Model change:** `gemini-2.5-flash` now 404s — *"no longer available to new users."*
+Default moved to **`gemini-3.7-flash`**, verified working against this key. Pinned, not
+`gemini-flash-latest`: an alias silently changes the system under the eval numbers, and
+`gemini-flash-latest` was returning 503 when probed. The cost constants in
+`query/generate.py` are still the old 2.5-flash rates and are marked UNVERIFIED.
 
 **Tests**
-- [ ] `test_citation_parsing` — `[1]`, `[2][3]`, malformed `[9]` (out of range) all handled
-- [ ] `test_every_claim_cited` — response sentences carry at least one marker
-- [ ] `test_refuses_unanswerable` — off-manual question triggers refusal, not invention
-- [ ] `test_no_outside_knowledge` — question answerable from world knowledge but absent from context → refusal
-- [ ] `test_citation_points_to_real_page` — cited page's text actually contains the fact
-- [ ] `test_streaming_assembles` — streamed chunks concatenate to the complete answer
-- [ ] `@live test_end_to_end_answer` — a real question returns a cited, correct answer
+- [x] `test_citation_parsing` — `[1]`, `[2][3]`, repeated `[1]`, out-of-range `[9]`
+- [x] `test_every_claim_cited` → `uncited_sentences()` plus three tests around it
+- [x] `test_refuses_unanswerable` — and that the refusal names what is missing
+- [x] `test_no_outside_knowledge` — the prompt forbids prior knowledge; verified live
+      against "warranty period in Kenya", which refuses
+- [x] `test_citation_points_to_real_page` — cited pages and snippet match the chunk
+- [x] `test_streaming_assembles` — and that a marker split across pieces still resolves
+- [x] `@live test_end_to_end_answer` — plus a live refusal test
+- [x] *Added*: retry tests — transient 503 retried, 404 not, no replay mid-stream
 
-**Exit gate:** across the 40 eval questions, zero uncited claims and zero hallucinated settings paths.
+**Exit gate:** ⏳ **not yet run.** The 60-question sweep measuring uncited claims and
+hallucinated settings paths needs `eval/run_eval.py` extended to the generation arm,
+which is Phase 7 work. What is verified so far is one end-to-end answer (screenshot
+question: 5 citations, every claim marked, correct pages) and one refusal.
+
+Manual spot check, `--mode bm25 --answer "how do I take a screenshot"`:
+15,300 in / 1,105 out tokens, ~7.5s, 5 citations resolving to five different manuals.
 
 ---
 

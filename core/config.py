@@ -26,7 +26,7 @@ class Settings:
     # is well inside its own free-tier limits.
     embed_backend: str = "local"  # "local" | "gemini"
     local_embed_model: str = "BAAI/bge-small-en-v1.5"
-    gen_model: str = "gemini-2.5-flash"
+    gen_model: str = "gemini-3.7-flash"
     # Reranking is off by default. Measured on 54 questions it bought +0.02
     # Recall@1 while *losing* 0.02 Recall@5, left MRR flat (0.844 -> 0.840), and
     # cost 280x latency (56ms -> 15.6s p50). A 15-second wait before generation
@@ -78,7 +78,7 @@ def load_settings(require_api_key: bool = True) -> Settings:
         embed_model=os.environ.get("EMBED_MODEL", "gemini-embedding-001"),
         embed_backend=os.environ.get("EMBED_BACKEND", "local").lower(),
         local_embed_model=os.environ.get("LOCAL_EMBED_MODEL", "BAAI/bge-small-en-v1.5"),
-        gen_model=os.environ.get("GEN_MODEL", "gemini-2.5-flash"),
+        gen_model=os.environ.get("GEN_MODEL", Settings.gen_model),
         rerank_enabled=os.environ.get("RERANK", "").lower() in ("1", "true", "yes"),
         rerank_model=os.environ.get("RERANK_MODEL", "BAAI/bge-reranker-base"),
         data_root=data_root,

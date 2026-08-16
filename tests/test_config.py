@@ -22,7 +22,9 @@ def test_defaults(monkeypatch):
     monkeypatch.delenv("DATA_ROOT", raising=False)
     s = load_settings()
     assert s.embed_model == "gemini-embedding-001"
-    assert s.gen_model == "gemini-2.5-flash"
+    # Pinned, not an alias like gemini-flash-latest: the eval numbers in
+    # eval/RESULTS.md are only reproducible against a fixed model.
+    assert s.gen_model == "gemini-3.7-flash"
     assert s.store_dir == s.data_root / "store"
     assert s.raw_dir == s.data_root / "raw"
 

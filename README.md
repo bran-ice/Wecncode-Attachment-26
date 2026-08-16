@@ -4,11 +4,12 @@ A hybrid retrieval-augmented generation system that answers questions about Sams
 Galaxy user manuals with **grounded, page-cited answers** — or an honest refusal when
 the manuals don't cover the question.
 
-> **Status: Phases 0–4 of 8 complete.** Acquisition, parsing, chunking, embedding, and
-> hybrid retrieval all work end to end: 28 manuals, 5,108 pages, 4,630 chunks, and a
-> measured Recall@5 of 0.93 (MRR 0.844) — see [`eval/RESULTS.md`](./eval/RESULTS.md).
-> Grounded generation (Phase 5) and the chat UI (Phase 6) are not yet implemented, so
-> today the system retrieves and cites passages but does not write answers.
+> **Status: Phases 0–5 of 8 built.** The system answers questions end to end today:
+> ask it something and it retrieves, cites, and writes a grounded answer — or refuses
+> when the manuals don't cover it. 28 manuals, 5,108 pages, 4,630 chunks, Recall@5 0.93
+> (MRR 0.844) — see [`eval/RESULTS.md`](./eval/RESULTS.md). Phase 5's exit gate (zero
+> uncited claims across the 60-question set) has not been run yet; that measurement
+> arrives with Phase 7. There is no chat UI yet — the interface is a CLI.
 > See [`Phases.md`](./Phases.md) for the full build checklist.
 
 ## Why hybrid
@@ -53,7 +54,7 @@ previous store serving.
 | Component | Choice |
 |---|---|
 | Embeddings | `bge-small-en-v1.5` local, 384-dim (Gemini `gemini-embedding-001` available) |
-| Generation | Gemini `gemini-2.5-flash` |
+| Generation | Gemini `gemini-3.7-flash` |
 | Keyword index | SQLite FTS5 (BM25) |
 | Vector index | FAISS `IndexIDMap2` over `IndexFlatIP` (exact search) |
 | Reranker | `bge-reranker-base` cross-encoder, local — **off by default**, see below |
@@ -80,7 +81,9 @@ Get a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
 ```bash
 python -m ingest              # build the store: parse, chunk, embed, index
 python -m ingest --dry-run    # everything except the embedding calls
-python -m scripts.ask "how do I enable always on display"   # query the store
+python -m scripts.ask "how do I enable always on display"   # retrieved passages
+python -m scripts.ask --answer "how do I take a screenshot" # cited answer (Gemini)
+python -m scripts.ask --answer --quiet "..."                # answer without the chunks
 python -m eval.run_eval       # reproduce the ablation table
 
 streamlit run app.py          # chat UI (Phase 6, not yet implemented)
