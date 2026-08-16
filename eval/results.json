@@ -1,0 +1,72 @@
+[
+  {
+    "name": "BM25 only",
+    "recall_at_1": 0.6851851851851852,
+    "recall_at_5": 0.7592592592592593,
+    "mrr": 0.7129629629629629,
+    "latency_p50": 14.963399997213855,
+    "latency_p95": 39.39580003498122,
+    "answerable": 54,
+    "misses": [
+      "overheat-use",
+      "wireless-power-share",
+      "find-my-mobile",
+      "secure-folder",
+      "quick-share",
+      "bixby-routines",
+      "edge-panel",
+      "talkback",
+      "software-update",
+      "security-updates",
+      "factory-reset",
+      "package-contents",
+      "verbatim-model-code"
+    ]
+  },
+  {
+    "name": "Dense only",
+    "recall_at_1": 0.7222222222222222,
+    "recall_at_5": 0.9259259259259259,
+    "mrr": 0.8021604938271605,
+    "latency_p50": 36.605849978514016,
+    "latency_p95": 42.89390001213178,
+    "answerable": 54,
+    "misses": [
+      "bixby-routines",
+      "edge-panel",
+      "verbatim-ip68",
+      "verbatim-model-code"
+    ]
+  },
+  {
+    "name": "Hybrid (RRF)",
+    "recall_at_1": 0.7777777777777778,
+    "recall_at_5": 0.9259259259259259,
+    "mrr": 0.8441358024691358,
+    "latency_p50": 55.54324996774085,
+    "latency_p95": 75.27750002918765,
+    "answerable": 54,
+    "misses": [
+      "secure-folder",
+      "bixby-routines",
+      "edge-panel",
+      "verbatim-model-code"
+    ]
+  },
+  {
+    "name": "Hybrid + rerank",
+    "recall_at_1": 0.7962962962962963,
+    "recall_at_5": 0.9074074074074074,
+    "mrr": 0.8401234567901235,
+    "latency_p50": 15600.085400015814,
+    "latency_p95": 35712.04620000208,
+    "answerable": 54,
+    "misses": [
+      "bixby-routines",
+      "edge-panel",
+      "security-updates",
+      "factory-reset",
+      "verbatim-model-code"
+    ]
+  }
+]

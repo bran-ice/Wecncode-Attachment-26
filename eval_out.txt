@@ -1,0 +1,21 @@
+60 questions (54 answerable, 6 unanswerable)
+
+BM25 only          R@1 0.69  R@5 0.76  MRR 0.713  p50    15ms
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+00:29:23 WARNING huggingface_hub.utils._http Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 8018.31it/s]
+C:\Users\brani\Desktop\AI powered hybrid Rag system for samsung userguide manual\ingest\embed.py:290: FutureWarning: The `get_sentence_embedding_dimension` method has been renamed to `get_embedding_dimension`.
+  self.dim = self._model.get_sentence_embedding_dimension()
+Dense only         R@1 0.72  R@5 0.93  MRR 0.802  p50    37ms
+Hybrid (RRF)       R@1 0.78  R@5 0.93  MRR 0.844  p50    56ms
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 6091.22it/s]
+Hybrid + rerank    R@1 0.80  R@5 0.91  MRR 0.840  p50 15600ms
+
+| Arm | Recall@1 | Recall@5 | MRR | p50 | p95 |
+|---|---|---|---|---|---|
+| BM25 only | 0.69 | 0.76 | 0.713 | 15ms | 39ms |
+| Dense only | 0.72 | 0.93 | 0.802 | 37ms | 43ms |
+| Hybrid (RRF) | 0.78 | 0.93 | 0.844 | 56ms | 75ms |
+| Hybrid + rerank | 0.80 | 0.91 | 0.840 | 15600ms | 35712ms |
+
+Missed by Hybrid + rerank: bixby-routines, edge-panel, security-updates, factory-reset, verbatim-model-code

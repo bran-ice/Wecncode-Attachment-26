@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Pipeline — Samsung Manual RAG</title>
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --surface: #ffffff;
+    --border: #e3e1dd;
+    --text: #23211e;
+    --muted: #6b6862;
+    --accent: #1a6b57;
+    --accent-soft: #e6f2ee;
+    --warn: #8a5a1b;
+    --warn-soft: #fbf1e2;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a;
+      --surface: #1e2024;
+      --border: #33363c;
+      --text: #e6e4e0;
+      --muted: #9b978f;
+      --accent: #6fc4a8;
+      --accent-soft: #1c2f2a;
+      --warn: #d9a441;
+      --warn-soft: #2e2618;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 3rem 1.25rem 6rem; }
+  header { border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .5rem; letter-spacing: -.02em; }
+  h2 {
+    font-size: 1.35rem; margin: 3.5rem 0 .5rem; letter-spacing: -.01em;
+    padding-top: 1.5rem; border-top: 1px solid var(--border);
+  }
+  h3 { font-size: 1.05rem; margin: 2rem 0 .4rem; }
+  p { margin: 0 0 1rem; }
+  .lede { color: var(--muted); font-size: 1.05rem; margin: 0; }
+  .fig {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+  }
+  .fig .mermaid { display: flex; justify-content: center; min-width: min-content; }
+  .caption {
+    font-size: .875rem; color: var(--muted); margin: .75rem 0 0;
+    padding-top: .75rem; border-top: 1px dashed var(--border);
+  }
+  .plain {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+  }
+  .plain strong { color: var(--accent); }
+  .plain > :last-child { margin-bottom: 0; }
+  .note {
+    background: var(--warn-soft);
+    border-left: 3px solid var(--warn);
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.25rem; margin: 1.5rem 0; font-size: .95rem;
+  }
+  .note > :last-child { margin-bottom: 0; }
+  code {
+    font-family: var(--mono); font-size: .875em;
+    background: var(--accent-soft); padding: .1em .35em; border-radius: 4px;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: .925rem; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--border); }
+  th { font-weight: 600; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+  td:first-child { white-space: nowrap; }
+  .tag {
+    display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .04em;
+    padding: .15em .5em; border-radius: 4px; vertical-align: middle; margin-left: .5rem;
+  }
+  .built { background: var(--accent-soft); color: var(--accent); }
+  .planned { background: var(--warn-soft); color: var(--warn); }
+  ul { padding-left: 1.25rem; }
+  li { margin-bottom: .4rem; }
+  .legend { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: .875rem; color: var(--muted); margin-top: 1rem; }
+  .legend span { display: flex; align-items: center; gap: .4rem; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>How data moves through the system</h1>
+  <p class="lede">From a 217-page PDF to a cited answer — where the vectors come from,
+  where they live, and when they get read.</p>
+  <div class="legend">
+    <span><span class="swatch" style="background:#cfe8de"></span> Built (Phases 0–2)</span>
+    <span><span class="swatch" style="background:#f5e2c0"></span> Planned (Phases 3–6)</span>
+  </div>
+</header>
+
+<h2>1. The whole system at a glance</h2>
+
+<div class="fig">
+<pre class="mermaid">
+flowchart LR
+  subgraph OFF["OFFLINE — runs occasionally, in batch"]
+    direction TB
+    A["Samsung support site"] --> B["discover<br/>find manual URLs"]
+    B --> C["acquire<br/>download 28 PDFs"]
+    C --> D["parse<br/>pages to blocks"]
+    D --> E["chunk<br/>blocks to passages"]
+    E --> F["embed<br/>text to vectors"]
+  end
+
+  subgraph STORE["SHARED STORAGE — the only thing both sides touch"]
+    direction TB
+    G[("corpus.db<br/>chunk text + BM25 index")]
+    H[("index.faiss<br/>4,630 vectors")]
+  end
+
+  subgraph ON["ONLINE — runs per message, in milliseconds"]
+    direction TB
+    I["user question"] --> J["expand<br/>rewrite the query"]
+    J --> K["retrieve<br/>keyword + vector"]
+    K --> L["rerank<br/>keep the best 5"]
+    L --> M["generate<br/>grounded answer"]
+    M --> N["answer + citations"]
+  end
+
+  F --> G
+  F --> H
+  G -.reads.-> K
+  H -.reads.-> K
+
+  classDef built fill:#cfe8de,stroke:#1a6b57,color:#12241e
+  classDef planned fill:#f5e2c0,stroke:#8a5a1b,color:#2e2618
+  classDef store fill:#dfe3ea,stroke:#4a5568,color:#1c2028
+  class A,B,C,D,E built
+  class F,I,J,K,L,M,N planned
+  class G,H store
+</pre>
+<p class="caption">Two pipelines that never call each other. They communicate only by
+leaving files on disk.</p>
+</div>
+
+<div class="plain">
+<p><strong>In plain language.</strong> There are two completely separate programs here.</p>
+<p>The <strong>offline</strong> one is the librarian. It runs rarely — when you add manuals —
+and does the slow work: downloading PDFs, cutting them into passages, and converting each
+passage into a list of numbers. Then it goes to sleep.</p>
+<p>The <strong>online</strong> one is the reference desk. It runs every time you ask a
+question, and it never writes anything. It just reads what the librarian left behind.</p>
+<p>They don't talk to each other. If the librarian crashes halfway through re-indexing,
+the reference desk carries on answering from the previous shelf, unaware anything happened.</p>
+</div>
+
+<h2>2. Offline: how a PDF becomes a vector</h2>
+
+<div class="fig">
+<pre class="mermaid">
+flowchart TB
+  P1["PDF page<br/><i>glyphs at coordinates</i>"] --> P2["read the embedded outline<br/>chapter / section / subsection"]
+  P1 --> P3["measure body text size<br/>13.6pt wins by character count"]
+  P2 --> P4
+  P3 --> P4["classify every line<br/>heading? prose? callout?"]
+  P1 --> P5["detect tables<br/>fence off their area"]
+  P4 --> P6["Block<br/>text + page + section path"]
+  P5 --> P6
+
+  P6 --> C1["group blocks by section"]
+  C1 --> C2{"section big<br/>enough?"}
+  C2 -- "yes" --> C4["pack to ~500 tokens<br/>80-token overlap"]
+  C2 -- "no, tiny" --> C3["merge with sibling sections<br/>sharing the same parent"]
+  C3 --> C4
+  C4 --> C5["Chunk<br/>4,630 of them"]
+
+  C5 --> E1["prefix section path<br/>onto the text"]
+  E1 --> E2["Gemini embedding API<br/>batched, checkpointed"]
+  E2 --> E3["vector of 768 numbers<br/>per chunk"]
+  E3 --> E4["normalise length to 1"]
+  E4 --> S1[("index.faiss")]
+  C5 --> S2[("corpus.db")]
+
+  classDef built fill:#cfe8de,stroke:#1a6b57,color:#12241e
+  classDef planned fill:#f5e2c0,stroke:#8a5a1b,color:#2e2618
+  classDef store fill:#dfe3ea,stroke:#4a5568,color:#1c2028
+  class P1,P2,P3,P4,P5,P6,C1,C2,C3,C4,C5 built
+  class E1,E2,E3,E4 planned
+  class S1,S2 store
+</pre>
+<p class="caption">Parsing rebuilds structure the PDF never stored. Chunking cuts on that
+structure. Embedding turns each passage into coordinates.</p>
+</div>
+
+<div class="plain">
+<p><strong>In plain language.</strong> A PDF doesn't contain paragraphs or headings — only
+instructions like "print a W at position 45.4, 67.5 in 19.5pt bold." Parsing rebuilds the
+structure your eye sees automatically.</p>
+<p>The lucky break: every Samsung manual carries a built-in table of contents, so we don't
+have to guess where sections start. Samsung already told us.</p>
+<p>Chunking then cuts the text <em>on those section boundaries</em>, never mid-topic. Tiny
+sections get glued to their neighbours so no passage is uselessly small.</p>
+<p>Finally each passage is sent to Gemini, which returns a list of 768 numbers describing
+its meaning. That list is the "vector."</p>
+</div>
+
+<h3>What an embedding actually is</h3>
+
+<div class="fig">
+<pre class="mermaid">
+flowchart LR
+  T1["'Wireless power sharing<br/>You can charge another<br/>device with your phone…'"] --> M["Gemini<br/>gemini-embedding-001"]
+  M --> V["[0.021, -0.118, 0.334,<br/>0.007, …, -0.052]<br/><i>768 numbers</i>"]
+  V --> N["normalise to length 1<br/><i>so comparison = angle</i>"]
+  N --> F[("FAISS row #4291<br/>id = chunk_id")]
+
+  classDef planned fill:#f5e2c0,stroke:#8a5a1b,color:#2e2618
+  classDef store fill:#dfe3ea,stroke:#4a5568,color:#1c2028
+  class T1,M,V,N planned
+  class F store
+</pre>
+<p class="caption">Same text in, same numbers out. Passages about similar things land near
+each other.</p>
+</div>
+
+<div class="plain">
+<p><strong>In plain language.</strong> Think of it as giving every passage a coordinate on a
+giant map of meaning.</p>
+<p>Passages about charging land in one neighbourhood. Passages about the camera land in a
+different one. Nothing about the words themselves is preserved — only <em>what the passage
+is about</em>.</p>
+<p>Later, your question gets a coordinate on the same map. Finding relevant passages becomes
+finding the nearest neighbours — and that's just arithmetic, which computers do very fast.</p>
+<p>This is why the system can match "how do I stop my battery draining" to a passage that
+never uses the word "draining."</p>
+</div>
+
+<h2>3. Where everything is stored</h2>
+
+<div class="fig">
+<pre class="mermaid">
+flowchart TB
+  subgraph DISK["data/store/ — one directory, swapped atomically"]
+    direction TB
+    subgraph DB["corpus.db (SQLite)"]
+      direction TB
+      T1["<b>documents</b><br/>28 rows — manual, models, pages, sha256, url"]
+      T2["<b>chunks</b><br/>4,630 rows — text, section_path, pages, vector_id"]
+      T3["<b>chunks_fts</b><br/>BM25 keyword index, kept in sync by triggers"]
+    end
+    subgraph FA["index.faiss"]
+      direction TB
+      T4["4,630 vectors × 768 numbers<br/>row id = chunk_id"]
+    end
+  end
+
+  T2 -. "trigger on insert/update/delete" .-> T3
+  T2 -. "chunk_id IS the vector id" .-> T4
+
+  classDef store fill:#dfe3ea,stroke:#4a5568,color:#1c2028
+  class T1,T2,T3,T4 store
+</pre>
+<p class="caption">Two files. The text lives in SQLite; the vectors live in FAISS; the
+chunk's own id is the link between them.</p>
+</div>
+
+<div class="plain">
+<p><strong>In plain language.</strong> Two things get stored, and they must never drift apart.</p>
+<p><strong>The words</strong> go into a SQLite database — a single file. Alongside them sits a
+keyword index, the same technology that powers a search box, so exact terms like
+<code>EP-TA845</code> can be found literally.</p>
+<p><strong>The numbers</strong> go into a FAISS file, which is built for one job: given a
+coordinate, find the nearest ones fast.</p>
+<p>The trick that keeps them aligned: <em>a chunk's database id is also its row number in the
+vector file.</em> There's no separate lookup table to get out of sync — chunk 4,291's vector
+is simply vector 4,291.</p>
+</div>
+
+<div class="note">
+<p><strong>Why the store is swapped, never edited.</strong> Re-indexing builds a brand-new
+directory off to the side and moves it into place only when it's complete. So the reference
+desk either sees the whole old shelf or the whole new one — never a half-rebuilt shelf. A
+crash mid-rebuild leaves the working version untouched.</p>
+</div>
+
+<h2>4. Online: what happens when you ask a question</h2>
+
+<div class="fig">
+<pre class="mermaid">
+flowchart TB
+  Q["'why is my S24 charging so slowly?'"] --> EX["expand the query<br/>resolve context, add Samsung's own wording"]
+  EX --> SPLIT{" "}
+
+  SPLIT --> BM["<b>keyword search</b><br/>SQLite BM25<br/>finds: 'charging', 'S24', part numbers"]
+  SPLIT --> EMB["embed the question<br/>same Gemini model"]
+  EMB --> VEC["<b>vector search</b><br/>FAISS nearest neighbours<br/>finds: meaning, not words"]
+
+  BM --> RRF["fuse the two ranked lists<br/><i>Reciprocal Rank Fusion</i>"]
+  VEC --> RRF
+  RRF --> RR["rerank top 20<br/>cross-encoder reads<br/>question + passage together"]
+  RR --> TOP["best 5 passages"]
+  TOP --> GEN["Gemini writes the answer<br/><i>using only these passages</i>"]
+  GEN --> ANS["answer with [1] [2] markers<br/>→ Galaxy S24/S25, p.22"]
+
+  classDef planned fill:#f5e2c0,stroke:#8a5a1b,color:#2e2618
+  classDef hidden fill:none,stroke:none
+  class Q,EX,BM,EMB,VEC,RRF,RR,TOP,GEN,ANS planned
+  class SPLIT hidden
+</pre>
+<p class="caption">Both searches run on every question. Neither is trusted alone.</p>
+</div>
+
+<div class="plain">
+<p><strong>In plain language.</strong> Your question gets searched two different ways at once,
+because each way fails at what the other is good at.</p>
+<p><strong>Keyword search</strong> is literal. Ask for <code>EP-TA845</code> and it finds
+exactly that string. But ask "why is charging slow" and it can't help if the manual says
+"reduced charging speed."</p>
+<p><strong>Vector search</strong> understands meaning, so it handles the rephrasing. But it's
+hopeless at part numbers — to it, <code>EP-TA845</code> and <code>EP-TA800</code> mean
+almost the same thing, which is exactly wrong.</p>
+<p>Manuals are <em>full</em> of both kinds of question, so we run both and merge the results.
+That merger is what "hybrid" in the project name means.</p>
+<p>A reranker then re-reads the top candidates properly — slower but sharper — and the best
+five are handed to Gemini with strict instructions: answer only from these, cite each claim,
+and if they don't cover it, say so.</p>
+</div>
+
+<h3>The same journey, as a timeline</h3>
+
+<div class="fig">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant U as You
+  participant App as Chat UI
+  participant G as Gemini
+  participant DB as corpus.db
+  participant FA as index.faiss
+
+  U->>App: "why is my S24 charging slowly?"
+  App->>G: rewrite into search queries
+  G-->>App: "slow charging", "fast charging not working"
+  App->>G: embed the question
+  G-->>App: 768 numbers
+  par two searches at once
+    App->>DB: BM25 keyword search
+    DB-->>App: 30 candidates
+  and
+    App->>FA: nearest-vector search
+    FA-->>App: 30 candidates
+  end
+  App->>App: fuse, then rerank to top 5
+  App->>DB: fetch those 5 chunks' text + pages
+  DB-->>App: passages with section paths
+  App->>G: "answer using only these, cite each claim"
+  G-->>App: streamed answer with [1] [2]
+  App-->>U: answer + clickable sources
+</pre>
+<p class="caption">Roughly 1–3 seconds end to end, most of it waiting on Gemini.</p>
+</div>
+
+<div class="plain">
+<p><strong>In plain language.</strong> Note what the database is asked for <em>twice</em>: once
+to find candidates, and again at the end to fetch the actual text of the winners.</p>
+<p>That's deliberate. Searching moves only ids and scores around — small and fast. The bulky
+text is only fetched for the five passages that survived.</p>
+<p>Note also what Gemini is <em>not</em> given: the whole manual. It only ever sees five
+passages. That's the entire trick behind grounding — it can't invent a settings menu if the
+only thing in front of it is the real page describing that menu.</p>
+</div>
+
+<h2>5. When each part runs</h2>
+
+<table>
+  <tr><th>Stage</th><th>Runs</th><th>Takes</th><th>Costs</th></tr>
+  <tr><td>discover</td><td>when adding manuals</td><td>~2 min</td><td>free</td></tr>
+  <tr><td>acquire</td><td>when adding manuals</td><td>~5 min</td><td>free</td></tr>
+  <tr><td>parse + chunk</td><td>whenever tuning</td><td>~90 s</td><td>free</td></tr>
+  <tr><td>embed</td><td>only for new/changed chunks</td><td>~5 min</td><td>Gemini quota</td></tr>
+  <tr><td>retrieve + rerank</td><td>every message</td><td>~200 ms</td><td>free</td></tr>
+  <tr><td>generate</td><td>every message</td><td>~1–3 s</td><td>Gemini quota</td></tr>
+</table>
+
+<div class="plain">
+<p><strong>In plain language.</strong> The expensive work happens once, offline. Answering is
+cheap because all the thinking about the manuals was done in advance.</p>
+<p>Embedding is the only ingestion step that costs money, which is why chunks are cached by a
+fingerprint of their content: re-running after a tweak re-embeds only what actually changed,
+not all 4,630.</p>
+</div>
+
+<h2>6. Current status</h2>
+
+<table>
+  <tr><th>Phase</th><th>What</th><th>State</th></tr>
+  <tr><td>0</td><td>Storage contract, schema, atomic swaps</td><td>Done<span class="tag built">built</span></td></tr>
+  <tr><td>1</td><td>Discovery + download — 28 manuals, 5,108 pages</td><td>Done<span class="tag built">built</span></td></tr>
+  <tr><td>2</td><td>Parse + chunk — 4,630 chunks</td><td>Done<span class="tag built">built</span></td></tr>
+  <tr><td>3</td><td>Embed + index</td><td>Next<span class="tag planned">planned</span></td></tr>
+  <tr><td>4</td><td>Hybrid retrieval + rerank</td><td><span class="tag planned">planned</span></td></tr>
+  <tr><td>5</td><td>Grounded generation + citations</td><td><span class="tag planned">planned</span></td></tr>
+  <tr><td>6</td><td>Chat UI</td><td><span class="tag planned">planned</span></td></tr>
+  <tr><td>7</td><td>Evaluation + ablation table</td><td><span class="tag planned">planned</span></td></tr>
+</table>
+
+<p style="color:var(--muted); font-size:.9rem; margin-top:3rem;">
+Anything marked <em>planned</em> is design, not working code — the shapes are settled but the
+numbers on those stages are estimates. See <code>Phases.md</code> for the build checklist and
+<code>CHUNKING.md</code> for the parsing and chunking detail.
+</p>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: dark ? 'dark' : 'neutral',
+    themeVariables: { fontFamily: 'inherit', fontSize: '14px' },
+    flowchart: { curve: 'basis', padding: 14, useMaxWidth: true },
+    sequence: { useMaxWidth: true, wrap: true }
+  });
+</script>
+</body>
+</html>

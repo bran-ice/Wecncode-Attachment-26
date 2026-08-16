@@ -1,0 +1,336 @@
+# Evaluation set for the Samsung manual RAG system.
+#
+# Gold labels are `expect` — substrings that must appear in the section path of
+# at least one retrieved chunk. Section paths are used rather than chunk ids
+# because ids change on every re-index, and a question's *right answer* does
+# not. `expect_text` optionally requires a phrase in the chunk body, for
+# questions where the section alone is too coarse.
+#
+# Types:
+#   factual     — one fact, stated in one place
+#   procedural  — a sequence of steps
+#   spec        — a table or a specific value/name
+#   unanswerable — deliberately outside the manuals; the system must refuse
+#
+# Questions are phrased the way a user would ask, NOT the way the manual writes
+# it. Copying the manual's wording would flatter BM25 and make the ablation
+# meaningless.
+
+- id: aod-enable
+  type: procedural
+  question: how do I keep the clock showing when the screen is off
+  expect: ["Lock screen", "AOD"]
+
+- id: screenshot
+  type: procedural
+  question: what buttons do I press to take a screenshot
+  expect: ["Screen capture", "screenshot"]
+
+- id: overheat-charging
+  type: factual
+  question: why does my phone get hot while charging
+  expect: ["heats up while charging"]
+
+- id: overheat-use
+  type: factual
+  question: is it normal for the phone to warm up when I play games
+  expect: ["heats up during use", "overheating"]
+
+- id: force-restart
+  type: procedural
+  question: my phone is frozen and won't respond, how do I force it off
+  expect: ["Turning the device on and off"]
+  expect_text: ["seconds"]
+
+- id: wireless-power-share
+  type: procedural
+  question: can I charge my earbuds using the phone itself
+  expect: ["power sharing"]
+
+- id: fast-charging
+  type: procedural
+  question: how do I make it charge faster
+  expect: ["Charging the battery", "Quick charging"]
+
+- id: battery-saving
+  type: factual
+  question: what can I do to make the battery last longer
+  expect: ["battery", "Device care"]
+
+- id: esim
+  type: procedural
+  question: how do I set up a second phone number without a physical sim
+  expect: ["eSIM", "SIM"]
+
+- id: sd-card
+  type: procedural
+  question: where do I put the memory card
+  expect: ["microSD", "SIM"]
+
+- id: screen-lock-change
+  type: procedural
+  question: how do I change from a pin to a fingerprint
+  expect: ["screen lock", "Biometrics"]
+
+- id: face-recognition
+  type: procedural
+  question: how do I set up unlocking with my face
+  expect: ["Face recognition", "Biometrics"]
+
+- id: find-my-mobile
+  type: factual
+  question: what happens if I lose my phone, can I track it
+  expect: ["Find My Mobile", "Security"]
+
+- id: secure-folder
+  type: procedural
+  question: how do I hide private photos from other people using my phone
+  expect: ["Secure Folder"]
+
+- id: samsung-account
+  type: factual
+  question: do I need a samsung account and what is it for
+  expect: ["Samsung account"]
+
+- id: quick-share
+  type: procedural
+  question: how do I send a photo to someone standing next to me
+  expect: ["Sharing content", "Quick Share"]
+
+- id: music-share
+  type: factual
+  question: can two phones connect to the same bluetooth speaker
+  expect: ["Music Share"]
+
+- id: samsung-dex
+  type: factual
+  question: can I use my phone like a desktop computer on a monitor
+  expect: ["DeX"]
+
+- id: bixby-routines
+  type: factual
+  question: can the phone do things automatically based on time or place
+  expect: ["Routines", "Bixby", "Advanced features"]
+
+- id: camera-pro-mode
+  type: procedural
+  question: how do I manually control shutter speed when taking a photo
+  expect: ["Camera"]
+  expect_text: ["Pro"]
+
+- id: camera-night
+  type: procedural
+  question: how do I take better pictures in the dark
+  expect: ["Camera"]
+
+- id: camera-portrait
+  type: procedural
+  question: how do I blur the background of a photo
+  expect: ["Camera"]
+
+- id: video-record
+  type: procedural
+  question: how do I record a video and change the resolution
+  expect: ["Camera"]
+
+- id: gallery-recycle
+  type: factual
+  question: I deleted a photo by accident, can I get it back
+  expect: ["Gallery", "Recycle bin"]
+
+- id: screenshot-scroll
+  type: procedural
+  question: how do I capture a whole long web page not just the screen
+  expect: ["Screen capture", "screenshot"]
+
+- id: split-screen
+  type: procedural
+  question: how do I use two apps at the same time on one screen
+  expect: ["Multi window", "Advanced features"]
+
+- id: edge-panel
+  type: factual
+  question: what is that tab on the side of the screen I keep swiping
+  expect: ["Edge panel"]
+
+- id: talkback
+  type: procedural
+  question: how do I turn on the screen reader for someone who cannot see
+  expect: ["Accessibility", "TalkBack"]
+
+- id: font-size
+  type: procedural
+  question: the text is too small, how do I make it bigger
+  expect: ["Display", "Accessibility"]
+
+- id: language-add
+  type: procedural
+  question: how do I add a second language to the keyboard
+  expect: ["language", "Entering text"]
+
+- id: software-update
+  type: procedural
+  question: how do I check if there is a new android version for my phone
+  expect: ["Software update"]
+
+- id: security-updates
+  type: factual
+  question: how long will my phone keep getting security patches
+  expect: ["Security updates"]
+
+- id: factory-reset
+  type: procedural
+  question: how do I wipe everything before selling my phone
+  expect: ["reset", "General management"]
+
+- id: backup-restore
+  type: procedural
+  question: how do I move my data to a new galaxy phone
+  expect: ["Accounts and backup", "Smart Switch"]
+
+- id: water-resistance
+  type: factual
+  question: can I take my phone in the shower
+  expect: ["water", "Health and Safety", "Care for and use"]
+
+- id: malware
+  type: factual
+  question: how do I protect my phone from viruses
+  expect: ["Malware", "viruses"]
+
+- id: parental-controls
+  type: procedural
+  question: how do I limit what my child can use on the phone
+  expect: ["Kids", "parental controls", "Digital Wellbeing"]
+
+- id: status-icons
+  type: spec
+  question: what does the triangle icon with arrows in the status bar mean
+  expect: ["Indicator icons", "status bar"]
+
+- id: nav-buttons
+  type: spec
+  question: what does the button at the bottom left of the screen do
+  expect: ["Navigation bar", "Understanding the screen"]
+
+- id: charging-warning
+  type: spec
+  question: what kind of charger am I supposed to use
+  expect: ["charging tips", "Charging the battery"]
+
+- id: package-contents
+  type: spec
+  question: what comes in the box with the phone
+  expect: ["package contents", "accessories"]
+
+- id: troubleshoot-no-turn-on
+  type: procedural
+  question: my phone will not turn on at all, what do I do
+  expect: ["Troubleshooting"]
+
+- id: troubleshoot-bluetooth
+  type: procedural
+  question: bluetooth will not pair with my car, how do I fix it
+  expect: ["Troubleshooting", "Bluetooth"]
+
+- id: voice-recorder
+  type: factual
+  question: can I record a meeting and get a transcript
+  expect: ["Voice Recorder"]
+
+# --- verbatim-string questions ---
+# These are the case BM25 uniquely wins: exact tokens a dense model blurs
+# together, since "IP68" and "IP67" are near-identical in embedding space.
+# Every string below was verified to exist in the corpus before being used.
+
+- id: verbatim-ip68
+  type: spec
+  question: IP68
+  expect: ["water and dust", "package contents"]
+  expect_text: ["IP68"]
+
+- id: verbatim-45w
+  type: spec
+  question: 45W charger
+  expect: ["package contents", "Charging"]
+  expect_text: ["45W"]
+
+- id: verbatim-usb-type-c
+  type: spec
+  question: USB Type-C cable
+  expect: ["Charging", "Battery"]
+  expect_text: ["USB Type-C"]
+
+- id: verbatim-heif
+  type: spec
+  question: HEIF format
+  expect: ["Camera", "Photos", "Gallery"]
+  expect_text: ["HEIF"]
+
+- id: verbatim-dolby-atmos
+  type: spec
+  question: Dolby Atmos
+  expect: ["Sounds", "Game Launcher", "Advanced"]
+  expect_text: ["Dolby Atmos"]
+
+- id: verbatim-model-code
+  type: spec
+  question: SM-A155F
+  expect: []
+  expect_text: ["SM-A155F"]
+
+- id: verbatim-smart-switch
+  type: procedural
+  question: Smart Switch
+  expect: ["Accounts and backup", "Samsung account"]
+  expect_text: ["Smart Switch"]
+
+- id: verbatim-circle-to-search
+  type: factual
+  question: Circle to Search
+  expect: ["Galaxy AI", "Understanding the screen", "Apps"]
+  expect_text: ["Circle to Search"]
+
+- id: verbatim-link-to-windows
+  type: procedural
+  question: Link to Windows
+  expect: ["Connected devices", "Advanced features", "Apps"]
+  expect_text: ["Link to Windows"]
+
+- id: verbatim-ar-zone
+  type: factual
+  question: AR Zone
+  expect: ["AR Zone", "AR Doodle"]
+  expect_text: ["AR Zone"]
+
+# --- unanswerable: not covered by phone manuals. The system must refuse. ---
+
+- id: unanswerable-price
+  type: unanswerable
+  question: how much does the galaxy s24 ultra cost
+  expect: []
+
+- id: unanswerable-washing-machine
+  type: unanswerable
+  question: how do I clean the filter on my samsung washing machine
+  expect: []
+
+- id: unanswerable-tv
+  type: unanswerable
+  question: how do I calibrate the picture settings on my samsung tv
+  expect: []
+
+- id: unanswerable-warranty-claim
+  type: unanswerable
+  question: what is the phone number for samsung support in kenya
+  expect: []
+
+- id: unanswerable-competitor
+  type: unanswerable
+  question: how do I use face id on my iphone
+  expect: []
+
+- id: unanswerable-repair
+  type: unanswerable
+  question: how do I replace the battery myself with a heat gun
+  expect: []
