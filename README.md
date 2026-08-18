@@ -4,12 +4,12 @@ A hybrid retrieval-augmented generation system that answers questions about Sams
 Galaxy user manuals with **grounded, page-cited answers** — or an honest refusal when
 the manuals don't cover the question.
 
-> **Status: Phases 0–5 of 8 built.** The system answers questions end to end today:
-> ask it something and it retrieves, cites, and writes a grounded answer — or refuses
-> when the manuals don't cover it. 28 manuals, 5,108 pages, 4,630 chunks, Recall@5 0.93
-> (MRR 0.844) — see [`eval/RESULTS.md`](./eval/RESULTS.md). Phase 5's exit gate (zero
-> uncited claims across the 60-question set) has not been run yet; that measurement
-> arrives with Phase 7. There is no chat UI yet — the interface is a CLI.
+> **Status: Phases 0–6 of 8 built.** There is a working chat UI: ask a question and it
+> retrieves, cites, and writes a grounded answer — or refuses when the manuals don't
+> cover it. Follow-ups work ("what about wireless charging on it?"). 28 manuals, 5,108
+> pages, 4,630 chunks, Recall@5 0.93 (MRR 0.844) — see [`eval/RESULTS.md`](./eval/RESULTS.md).
+> Phase 7 is the remaining work: measuring citation accuracy, refusal rate, and cost,
+> which are the numbers Phases 5 and 6 are still claimed rather than proven on.
 > See [`Phases.md`](./Phases.md) for the full build checklist.
 
 ## Why hybrid
@@ -79,14 +79,22 @@ Get a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
 ## Usage
 
 ```bash
-python -m ingest              # build the store: parse, chunk, embed, index
-python -m ingest --dry-run    # everything except the embedding calls
-python -m scripts.ask "how do I enable always on display"   # retrieved passages
-python -m scripts.ask --answer "how do I take a screenshot" # cited answer (Gemini)
-python -m scripts.ask --answer --quiet "..."                # answer without the chunks
-python -m eval.run_eval       # reproduce the ablation table
+python -m ingest              # build the store first: parse, chunk, embed, index
+streamlit run app.py          # then chat — this is the interface
+```
 
-streamlit run app.py          # chat UI (Phase 6, not yet implemented)
+The sidebar toggles the retrieval mode (hybrid / BM25 / dense), limits answers to one
+device model, and shows latency and token cost per turn. Every claim carries a `[n]`
+that expands into the manual page it came from.
+
+For working on retrieval without a browser in the way:
+
+```bash
+python -m ingest --dry-run    # everything except the embedding calls
+python -m scripts.ask "how do I enable always on display"   # retrieved passages only
+python -m scripts.ask --answer "how do I take a screenshot" # cited answer (Gemini)
+python -m scripts.ask --mode bm25 "EP-TA845"                # one retrieval arm
+python -m eval.run_eval       # reproduce the ablation table
 ```
 
 ## Tests

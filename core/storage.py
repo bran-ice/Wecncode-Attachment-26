@@ -143,7 +143,16 @@ def fts_escape(query: str) -> str:
 class Store:
     """Read/write access to one store directory."""
 
-    def __init__(self, root: Path, create: bool = False):
+    def __init__(self, root: Path, create: bool = False, multithread: bool = False):
+        """`multithread` allows the connection to be used from more than one
+        thread. Streamlit runs every rerun on a fresh thread while caching the
+        Store across them, so without it the second interaction dies with
+        *"SQLite objects created in a thread can only be used in that same
+        thread"*. Safe only because the query pipeline never writes: SQLite
+        serialises reads internally, and there is no write to interleave with.
+        Ingestion must never set it — a half-applied write from two threads is
+        exactly the corruption the atomic swap exists to prevent.
+        """
         self.root = Path(root)
         if not self.root.exists():
             if not create:
@@ -158,7 +167,9 @@ class Store:
         if not create and not self.db_path.exists():
             raise StoreError(f"Store at {self.root} has no {DB_NAME}.")
 
-        self.conn = sqlite3.connect(self.db_path)
+        if create and multithread:
+            raise StoreError("multithread access is read-only; ingestion must not use it")
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=not multithread)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys=ON")
         if create:

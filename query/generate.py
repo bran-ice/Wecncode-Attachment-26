@@ -244,11 +244,11 @@ class GeminiGenerator:
             self._client = genai.Client(api_key=self._api_key)
         return self._client
 
-    def _config(self):
+    def _config(self, instruction: Optional[str] = None):
         from google.genai import types
 
         return types.GenerateContentConfig(
-            system_instruction=self.system_instruction,
+            system_instruction=instruction or self.system_instruction,
             # Deterministic: the same question over the same context should not
             # produce a different settings path on a second run.
             temperature=0.0,
@@ -275,6 +275,21 @@ class GeminiGenerator:
                 self._sleep(delay)
                 delay = min(delay * 2, 30.0)
         raise GenerationError("unreachable")
+
+    def generate_with_instruction(self, prompt: str, instruction: str) -> str:
+        """Generate under a different system instruction than the grounded one.
+
+        Used by query expansion, which is a rewriting task and must not inherit
+        the citation rules — a rewritten question carrying `[1]` is nonsense.
+        """
+        response = self._retry(
+            lambda: self.client.models.generate_content(
+                model=self.model, contents=prompt, config=self._config(instruction)
+            ),
+            "expansion",
+        )
+        self._account(response)
+        return getattr(response, "text", "") or ""
 
     def generate(self, prompt: str) -> str:
         response = self._retry(

@@ -328,26 +328,58 @@ Manual spot check, `--mode bm25 --answer "how do I take a screenshot"`:
 
 ---
 
-## Phase 6 — Chat UI
+## Phase 6 — Chat UI ✅ *built — `app.py` + `query/session.py`, 34 tests green*
 
 **Build**
-- [ ] `app.py` — Streamlit chat with message history
-- [ ] Streamed answer rendering
-- [ ] Citations as expandable cards: snippet + manual + page
-- [ ] Sidebar: model filter, retrieval-mode toggle (hybrid / BM25 / dense)
-- [ ] Per-turn latency + token-cost readout
-- [ ] History feeds query expansion **only** — never the grounding context
-- [ ] Graceful error surface for API failure / empty index
+- [x] `app.py` — Streamlit chat with message history
+- [x] Streamed answer rendering, re-rendered from the assembled `Answer` at the end so
+      the refusal sentinel never reaches the reader
+- [x] Citations as expandable cards: snippet + manual + page + section path
+- [x] Sidebar: model filter (28 manuals), mode toggle, passages-per-answer slider,
+      clear-conversation button
+- [x] Per-turn latency + token-cost readout, including what the question was
+      *searched as* when expansion rewrote it
+- [x] History feeds query expansion **only** — never the grounding context
+- [x] Graceful error surface for API failure / empty index / missing key / bad model
+- [x] *Added*: `query/expand.py` — the follow-up rewriting deferred from Phase 4
+- [x] *Added*: `query/session.py` — the chat pipeline with no Streamlit in it, which is
+      what makes any of this testable
 
 **Tests**
-- [ ] `test_history_not_in_context` — grounding prompt contains no prior turns
-- [ ] `test_mode_toggle_changes_results` — BM25 and dense modes return different sets
-- [ ] `test_citation_card_mapping` — each `[n]` renders the correct source chunk
-- [ ] `test_empty_index_message` — no index present → clear instruction, no traceback
-- [ ] `test_api_failure_handled` — mocked API error shows a message, session survives
-- [ ] **Manual gate:** 10 hand-driven multi-turn conversations, no dead ends
+- [x] `test_history_not_in_context` — no prior question or answer text in any grounding
+      prompt, checked over a two-turn conversation
+- [x] `test_mode_toggle_changes_results` — the sidebar toggle reaches the retriever and
+      BM25 vs dense return different top hits
+- [x] `test_citation_card_mapping` — each `[n]` resolves to the chunk, page and snippet
+      it actually came from
+- [x] `test_empty_index_message` — and a separate message for *no* index vs *empty* index
+- [x] `test_api_failure_handled` — 429 surfaces as advice, and the next turn still works
+- [x] *Added*: expansion tests — dependent-question detection, the rewrite instruction,
+      fallback when the rewrite call fails, history truncation
+- [x] *Added*: `test_multithread_store_is_readable_from_another_thread`
+- [ ] **Manual gate:** 10 hand-driven multi-turn conversations, no dead ends — *yours to
+      drive; deliberately not automated*
 
-**Exit gate:** a fresh user can install, ingest, and get a cited answer from the README alone.
+**Bug found by driving it:** `@st.cache_resource` holds one `Store` while Streamlit runs
+every rerun on a fresh thread, and SQLite connections are thread-bound — the second
+interaction died with *"SQLite objects created in a thread can only be used in that same
+thread."* `Store(..., multithread=True)` now opts into `check_same_thread=False`, and is
+refused outright when `create=True`: safe for the read-only query path, corruption for
+ingestion.
+
+**Verified by driving the real app** (Streamlit's `AppTest`, real store, real Gemini):
+- Renders: title, mode radio, 28-manual filter, chat input, no exceptions
+- One-turn: "how do I take a screenshot" → cited answer, 5 citation cards across 5 manuals
+- Two-turn: "does the A52 have a headphone jack" → *"Yes, the Galaxy A52 5G includes an
+  Earphone jack [1]"*; follow-up "what about wireless charging on it?" was searched as
+  *"What about wireless charging on the A52?"* — expansion resolved the pronoun from
+  history, and the grounding prompt still saw only chunks
+- Retry worked against three real 503s mid-conversation
+
+**Exit gate:** ⏳ needs a fresh-user run-through. The README now documents install →
+ingest → `streamlit run app.py`, but nobody has followed it from a clean machine. Note
+`streamlit` was in `requirements.txt` yet not installed in `.venv` — exactly the kind of
+gap that run-through exists to catch.
 
 ---
 

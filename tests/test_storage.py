@@ -206,3 +206,30 @@ def test_part_numbers_survive_stopword_filtering():
     from core.storage import fts_escape
 
     assert fts_escape("is the EP-TA845 in the box") == '"EP-TA845" OR "box"'
+
+
+def test_multithread_store_is_readable_from_another_thread(tmp_path, doc, chunks):
+    """Streamlit caches one Store and reruns on a new thread each time."""
+    import threading
+
+    with staging_store(tmp_path / "store") as store:
+        store.add_document(doc)
+        store.add_chunks(chunks)
+
+    reader = Store(tmp_path / "store", multithread=True)
+    result = {}
+
+    def read():
+        result["n"] = reader.count_chunks()
+
+    thread = threading.Thread(target=read)
+    thread.start()
+    thread.join()
+    reader.close()
+    assert result["n"] == len(chunks)
+
+
+def test_multithread_is_refused_for_writes(tmp_path):
+    """Ingestion must never open a cross-thread connection."""
+    with pytest.raises(StoreError, match="read-only"):
+        Store(tmp_path / "new", create=True, multithread=True)
