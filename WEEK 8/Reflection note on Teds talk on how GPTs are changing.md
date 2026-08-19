@@ -1,0 +1,3 @@
+From the Teds talk and understanding of operation of LLMS, its true to say that LLMs are changing the way humans speak. From the concept of chunking, LLMs are fed with well chunked information for grounded generation once a query is asked. This means that LLMs are programmed by humans. In the case of Grok it was mentioned that Elon Musk gets to correct it once it gives answers that are not satisfactory to it.
+Humans as the consumers of the LLMs get to overly trust it hence believe whatever they are given. Also from the talk, it is mentioned That LLMs get to follow the trends and rising popularity with time and within the particular areas. This gets to attract more humans hence giving them the influence. 
+Hence it is true to say that GPTs are affecting how humans talk.
