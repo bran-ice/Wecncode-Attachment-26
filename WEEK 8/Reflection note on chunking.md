@@ -1,8 +1,8 @@
-##CHUNKING IN LLMS
+## CHUNKING IN LLMS
 Chunking is the process of breaking down long pieces of text into small manageable segments before feeding into an LLM.
 Chunking is important since it improves retrieval precision searching through smaller highly specific text chunks allows the retrieval syatem to pinpoint exact paragraphs containing answers rather than the entire pages. It also ensures vector representation captures the precise semantic meaning in the vector databases used by the RAG system. It also improves the computational speed rather than when processing a massive document all at once.
 There are several chunking methods and before making a decision on what method to employ one should parse through the document to understand the documents structure.If the document has a reliable structure one should employ structure aware chunking otherwise employ reccussive character splitting. Once chunking is complete observe whether the chunks are loosing context on there own. If yes add parent child retrieval otherwise ship it and move on.
-CHUNKING AS APPLIED IN MY CAPSTONE PROJECT
+## CHUNKING AS APPLIED IN MY CAPSTONE PROJECT
 The data in my project are galaxy PDF manuals, they contain 5108 pages. The manuals structure is that they are made up of chapter, section and subsection. The chunking process involved cutting at the boundaries of the table of contents.However theis resulted into too small chunks hence had to let several chunks sit under one parent but maintaining theIr own mini headings.
 For the chunks that were too long, i split the sentence ending and applied an overlap so that for a procedure split across two pieces keeps its lead in both sides. 
 My manuals also contained tables. For the handling of tables never split them, instead find them and fence them, rebuild into markdown hence retaining rows and columns and finally keep its sorrounding prose, expalnation and data stay together.
