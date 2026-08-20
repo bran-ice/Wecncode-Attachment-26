@@ -12,15 +12,32 @@ work, and record what a phase's exit gate actually showed.
 `CLAUDE.local.md` (gitignored) holds machine-specific notes — local paths, environment
 quirks, scratch findings. Shared rules belong here; personal ones belong there.
 
-Phases 0–4 are complete (28 manuals, 4,630 chunks, hybrid retrieval at R@5 0.93 /
-MRR 0.844). Next is Phase 5, grounded generation. `README.md` still says "Phase 0" —
-it lags; trust `Phases.md`.
+Phases 0–7 are built. The exit gates for 5, 6 and 7 have **not** passed: 5 and 7 are
+blocked on the corpus (below), 6 needs a human run-through. `README.md` and `Phases.md`
+were both brought current on 2026-08-20 and agree with the code — if they disagree in
+future, `Phases.md` wins.
+
+**The corpus on disk is a placeholder.** On 2026-08-20 the 28-manual corpus (4,630
+chunks) was deleted at the user's request and replaced with two short Galaxy A05
+excerpts — 43 chunks, 14 pages. Consequences that will bite if you forget them:
+
+- The measured numbers still quoted in Phases 1–4 (R@5 0.93, MRR 0.844) came from the
+  old corpus **and** the old embedder. They are not reproducible today.
+- `eval/` is stale **by decision**, not by neglect. The gold set in `eval/questions.yaml`
+  references chunks and pages that no longer exist. Don't run `eval.run_eval` and report
+  its output as a quality signal, and don't "fix" the stale files. Rebuild the gold set
+  when a real manual lands, then re-measure.
+- Retrieval metrics are meaningless at this size — R@5 is near-free when five results
+  cover most of the corpus, and hybrid-vs-each-half has no room to show a difference.
+- Citation page numbers don't match a real A05 manual: one excerpt starts at manual
+  page 30, so its internal pagination is offset. That is not a citation bug.
 
 ## Commands
 
 ```powershell
 .venv/Scripts/python.exe -m pytest -m "not live"        # default suite
 .venv/Scripts/python.exe -m pytest tests/test_retrieve.py::test_name   # one test
+.venv/Scripts/python.exe -m ingest.acquire --scan        # local PDFs -> catalog/manifest.json
 .venv/Scripts/python.exe -m ingest                       # build the store
 .venv/Scripts/python.exe -m ingest --dry-run --limit 2   # parse+chunk only, no API
 .venv/Scripts/python.exe -m scripts.ask "how do I enable always on display"
@@ -30,6 +47,12 @@ it lags; trust `Phases.md`.
 ```
 
 `scripts/` is for iterating on retrieval without the UI; it is throwaway, not API.
+
+`python -m ingest` reads `data/catalog/manifest.json` and fails with *"No manuals in the
+manifest"* if it is absent — `--scan` builds it from whatever is in `data/raw/`. `--scan`
+infers model, language and region **from the filename** and silently skips anything it
+can't identify as English, so `Samsung A05.pdf` is dropped while
+`SM-A055F_UG_EN_*.pdf` is indexed as a Galaxy A05. See `ingest/metadata.py`.
 
 ## Environment
 
@@ -84,24 +107,45 @@ from the cause.
 
 - Every phase has an exit gate in `Phases.md`. Don't advance past a failing gate.
 - Mock Gemini in unit tests. Real API calls go behind `@pytest.mark.live`.
-- Prefer **relative** assertions for retrieval quality (hybrid beats each half alone,
-  rerank improves MRR) over absolute thresholds — absolute numbers depend on the corpus
-  and will make the suite brittle.
+- Prefer **relative** assertions for retrieval quality (hybrid beats each half alone) over
+  absolute thresholds — absolute numbers depend on the corpus and will make the suite
+  brittle. Don't assert that rerank improves MRR; measurement says it doesn't.
+- The default suite is 286 tests in ~130s on this machine. Most of that is antivirus
+  scanning the venv during import, not tests running — it is not a regression.
 - Two gates are deliberately human: reading 30 sampled chunks in Phase 2, and driving 10
   conversations in Phase 6. Don't try to automate these away — incoherent chunks pass
   every assertion you could write for them.
 
 ## Models and defaults
 
-Defaults live in `core/config.Settings` and two of them are deliberate, measured choices —
-don't "fix" them without redoing the measurement:
+Defaults live in `core/config.Settings`, but **what actually runs is `.env`**, which
+overrides them and is gitignored. Check `.env` before reasoning about behaviour — the
+defaults in `config.py` are no longer what the system uses.
 
-- **`embed_backend="local"`** (`BAAI/bge-small-en-v1.5`, 384-dim). Gemini's free tier caps
-  at 1,000 items/day and the corpus needs 4,630. Generation still goes to Gemini
-  (`gemini-2.5-flash`). `GeminiEmbedder` and `LocalEmbedder` are interchangeable behind
-  `build_embedder()`; both must stay so.
-- **`rerank_enabled=False`.** The cross-encoder cost 280× latency (56ms → 15.6s p50) for a
-  flat MRR. The rerank path stays tested and available as an eval arm.
+Currently live (set in `.env`, 2026-08-20):
+
+| | `config.py` default | `.env` override |
+|---|---|---|
+| `embed_backend` | `local` | **`gemini`** |
+| `embed_model` | `gemini-embedding-001` | same, 768-dim via `EMBED_DIM` |
+| `gen_model` | `gemini-3.7-flash` | **`gemini-3.5-flash-lite`** |
+
+- **The embedding backend switched away from local BGE for cold-start latency.** Local
+  cost ~150s per process — ~140s of it `import torch` + `import sentence_transformers`
+  before any weights loaded (measured warm: s-t 116.4s, torch 24.0s, faiss 2.7s, BGE
+  weights 8.6s, encode 0.08s). In Streamlit that was a ~3-minute wait on first render.
+  The original quota rationale still holds and will apply again: the free tier caps at
+  1,000 items/day, which the old 4,630-chunk corpus blew through. At 43 chunks it is
+  inert. If a real manual pushes the count back into the thousands, move BGE to an ONNX
+  runtime (same weights, same vector space, seconds of import) rather than reverting to
+  torch.
+- **Switching backends changes the vector dimension, so it requires a full re-ingest.**
+  The embedding cache keys on `(model, task_type, dim, text)` precisely so a stale vector
+  can never be served into a new index — a backend switch is a clean total miss.
+- **`rerank_enabled=False`, and the flag is moot anyway.** The cross-encoder cost 280×
+  latency (56ms → 15.6s p50) for a flat MRR. Beyond the flag, nothing in the serving path
+  imports `query/rerank.py` — only `eval/run_eval.py` does. Flipping `RERANK=true` will
+  not put a reranker in front of the UI.
 
 - **Query/document asymmetry is preserved in both backends** — Gemini via task types
   (`RETRIEVAL_DOCUMENT` at ingest, `RETRIEVAL_QUERY` at search), BGE via the instruction
