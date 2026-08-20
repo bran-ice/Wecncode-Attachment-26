@@ -386,3 +386,41 @@ def test_live_refuses_what_the_context_does_not_cover(hits, models):
         "what is the warranty period in Kenya", hits, generator, doc_models=models
     )
     assert answer.refused is True
+
+
+# --- daily quota ----------------------------------------------------------
+
+DAILY_429 = (
+    "429 RESOURCE_EXHAUSTED. Quota exceeded for metric: generate_content_free_tier_requests, "
+    "quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier, limit: 20"
+)
+
+
+def test_daily_quota_is_not_retried(hits, models):
+    """Retrying a per-day quota burns backoff against something that cannot recover."""
+    from query.generate import QuotaExhausted
+
+    generator = make_generator(raises=RuntimeError(DAILY_429))
+    slept = []
+    generator._sleep = lambda seconds: slept.append(seconds)
+    with pytest.raises(QuotaExhausted):
+        answer_question("q", hits, generator, doc_models=models)
+    assert slept == []
+    assert len(generator._client.models.prompts) == 1
+
+
+def test_per_minute_quota_is_still_retried(hits, models):
+    """A plain 429 clears in seconds and must keep its backoff."""
+    generator = make_generator(raises=RuntimeError("429 RESOURCE_EXHAUSTED. Please retry in 5s"))
+    generator._sleep = lambda _seconds: None
+    with pytest.raises(GenerationError):
+        answer_question("q", hits, generator, doc_models=models)
+    assert len(generator._client.models.prompts) == MAX_RETRIES
+
+
+def test_quota_exhausted_is_a_generation_error(hits, models):
+    """Callers catching GenerationError must still catch this."""
+    from query.generate import GenerationError as GE
+    from query.generate import QuotaExhausted
+
+    assert issubclass(QuotaExhausted, GE)

@@ -1,11 +1,11 @@
 [
   {
     "name": "BM25 only",
-    "recall_at_1": 0.6851851851851852,
-    "recall_at_5": 0.7592592592592593,
-    "mrr": 0.7129629629629629,
-    "latency_p50": 14.963399997213855,
-    "latency_p95": 39.39580003498122,
+    "recall_at_1": 0.7037037037037037,
+    "recall_at_5": 0.7777777777777778,
+    "mrr": 0.7314814814814815,
+    "latency_p50": 18.475100019713864,
+    "latency_p95": 183.22489998536184,
     "answerable": 54,
     "misses": [
       "overheat-use",
@@ -19,54 +19,50 @@
       "software-update",
       "security-updates",
       "factory-reset",
-      "package-contents",
-      "verbatim-model-code"
+      "package-contents"
     ]
   },
   {
     "name": "Dense only",
-    "recall_at_1": 0.7222222222222222,
-    "recall_at_5": 0.9259259259259259,
-    "mrr": 0.8021604938271605,
-    "latency_p50": 36.605849978514016,
-    "latency_p95": 42.89390001213178,
+    "recall_at_1": 0.7407407407407407,
+    "recall_at_5": 0.9444444444444444,
+    "mrr": 0.820679012345679,
+    "latency_p50": 105.67445000924636,
+    "latency_p95": 469.94559999438934,
     "answerable": 54,
     "misses": [
       "bixby-routines",
       "edge-panel",
-      "verbatim-ip68",
-      "verbatim-model-code"
+      "verbatim-ip68"
     ]
   },
   {
     "name": "Hybrid (RRF)",
-    "recall_at_1": 0.7777777777777778,
-    "recall_at_5": 0.9259259259259259,
-    "mrr": 0.8441358024691358,
-    "latency_p50": 55.54324996774085,
-    "latency_p95": 75.27750002918765,
+    "recall_at_1": 0.7962962962962963,
+    "recall_at_5": 0.9444444444444444,
+    "mrr": 0.8626543209876543,
+    "latency_p50": 60.74895001074765,
+    "latency_p95": 189.722899987828,
     "answerable": 54,
     "misses": [
       "secure-folder",
       "bixby-routines",
-      "edge-panel",
-      "verbatim-model-code"
+      "edge-panel"
     ]
   },
   {
     "name": "Hybrid + rerank",
-    "recall_at_1": 0.7962962962962963,
-    "recall_at_5": 0.9074074074074074,
-    "mrr": 0.8401234567901235,
-    "latency_p50": 15600.085400015814,
-    "latency_p95": 35712.04620000208,
+    "recall_at_1": 0.8148148148148148,
+    "recall_at_5": 0.9259259259259259,
+    "mrr": 0.858641975308642,
+    "latency_p50": 18466.31509999861,
+    "latency_p95": 51800.60230000527,
     "answerable": 54,
     "misses": [
       "bixby-routines",
       "edge-panel",
       "security-updates",
-      "factory-reset",
-      "verbatim-model-code"
+      "factory-reset"
     ]
   }
 ]

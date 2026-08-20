@@ -54,8 +54,20 @@ MAX_RETRIES = 4
 # worth waiting out, a 404 on a retired model id is not.
 _RETRYABLE = ("429", "RESOURCE_EXHAUSTED", "503", "500", "UNAVAILABLE", "timeout")
 
+# A per-*minute* 429 clears in seconds. A per-*day* one clears tomorrow, and
+# retrying it burns four attempts and ~14s of backoff per call against a quota
+# that cannot recover — which is how a 64-question eval spent its whole budget
+# on the first few questions and reported the rest as model failures.
+_DAILY_QUOTA = ("PerDay", "per day", "GenerateRequestsPerDayPerProject")
+
+
+def _is_daily_quota(message: str) -> bool:
+    return any(token in message for token in _DAILY_QUOTA)
+
 
 def _is_retryable(message: str) -> bool:
+    if _is_daily_quota(message):
+        return False
     return any(token in message for token in _RETRYABLE)
 
 SYSTEM_INSTRUCTION = f"""\
@@ -84,6 +96,10 @@ _SENTENCE_RE = re.compile(r"[^.!?]+[.!?]*")
 
 class GenerationError(RuntimeError):
     """Raised when the generation call fails or returns nothing usable."""
+
+
+class QuotaExhausted(GenerationError):
+    """The daily quota is gone. Waiting will not help; stop the run."""
 
 
 @dataclass
@@ -269,6 +285,8 @@ class GeminiGenerator:
                 return call()
             except Exception as exc:
                 message = str(exc)
+                if _is_daily_quota(message):
+                    raise QuotaExhausted(f"{what} failed: daily quota exhausted") from exc
                 if not _is_retryable(message) or attempt == MAX_RETRIES - 1:
                     raise GenerationError(f"{what} failed: {message}") from exc
                 log.warning("%s failed (%s); retrying in %.0fs", what, message[:80], delay)
@@ -332,6 +350,8 @@ class GeminiGenerator:
                 message = str(exc)
                 if emitted:
                     raise GenerationError(f"generation failed mid-stream: {message}") from exc
+                if _is_daily_quota(message):
+                    raise QuotaExhausted("generation failed: daily quota exhausted") from exc
                 if not _is_retryable(message) or attempt == MAX_RETRIES - 1:
                     raise GenerationError(f"generation failed: {message}") from exc
                 log.warning("Generation failed (%s); retrying in %.0fs", message[:80], delay)

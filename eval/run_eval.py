@@ -63,12 +63,17 @@ def is_hit(question: Question, hit: RetrievedChunk) -> bool:
     # as "Settings" with "Software update:" inline. The chunk genuinely covers
     # the topic either way, and scoring it a miss would understate retrieval.
     haystack = f"{hit.chunk.section_path} {hit.chunk.text}".lower()
-    if not any(term.lower() in haystack for term in question.expect):
+    # An empty `expect` means the gold label is `expect_text` alone — a question
+    # whose right answer is a literal string with no useful section to name.
+    # Requiring both would score such a question a miss no matter what came
+    # back, silently deflating every arm on exactly the verbatim lookups the
+    # hybrid claim rests on.
+    if question.expect and not any(term.lower() in haystack for term in question.expect):
         return False
     if question.expect_text:
         body = hit.chunk.text.lower()
         return any(term.lower() in body for term in question.expect_text)
-    return True
+    return bool(question.expect)
 
 
 def rank_of_first_hit(question: Question, hits: list[RetrievedChunk]) -> int | None:
@@ -136,15 +141,63 @@ def run_arm(
     )
 
 
+BASELINE = Path(__file__).parent / "baseline.json"
+CHECKPOINT = Path(__file__).parent / "generation_checkpoint.json"
+# A drop this large is a regression, not corpus noise. Recorded against the
+# hybrid arm because that is the one that ships.
+REGRESSION_TOLERANCE = 0.05
+
+
+def check_regression(results: list[ArmResult], baseline_path: Path = BASELINE) -> list[str]:
+    """Compare against the recorded baseline. Returns the failures, if any."""
+    if not baseline_path.exists():
+        return []
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    problems = []
+    for result in results:
+        recorded = baseline.get(result.name)
+        if not recorded:
+            continue
+        drop = recorded["recall_at_5"] - result.recall_at_5
+        if drop > REGRESSION_TOLERANCE:
+            problems.append(
+                f"{result.name}: Recall@5 {result.recall_at_5:.2f} is "
+                f"{drop:.2f} below the baseline {recorded['recall_at_5']:.2f}"
+            )
+    return problems
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=["bm25", "dense", "hybrid", "all"], default="all")
     parser.add_argument("--no-rerank", action="store_true")
     parser.add_argument("--json", type=Path, help="write results as JSON")
+    parser.add_argument(
+        "--generate", action="store_true",
+        help="also run the generation arm: citation accuracy, refusals, cost (costs API calls)",
+    )
+    parser.add_argument(
+        "--dump", type=Path, help="with --generate, write every answer for reading",
+    )
+    parser.add_argument(
+        "--write-baseline", action="store_true",
+        help="record this run as the regression baseline",
+    )
+    parser.add_argument(
+        "--gen-model", help="override GEN_MODEL for the generation arm only",
+    )
+    parser.add_argument(
+        "--gen-limit", type=int,
+        help="stop after N generated answers — free-tier quotas are per day",
+    )
+    parser.add_argument(
+        "--fresh", action="store_true",
+        help="ignore the generation checkpoint and start over",
+    )
     args = parser.parse_args(argv)
 
     setup_logging("WARNING")
-    settings = load_settings(require_api_key=False)
+    settings = load_settings(require_api_key=args.generate)
     questions = load_questions()
     print(
         f"{len(questions)} questions "
@@ -183,11 +236,154 @@ def main(argv=None) -> int:
     if results[-1].misses:
         print(f"\nMissed by {results[-1].name}: {', '.join(results[-1].misses)}")
 
+    if problems := check_regression(results):
+        print("\nREGRESSION against eval/baseline.json:")
+        for problem in problems:
+            print(f"  {problem}")
+
+    if args.write_baseline:
+        BASELINE.write_text(
+            json.dumps(
+                {r.name: {"recall_at_5": r.recall_at_5, "mrr": r.mrr} for r in results},
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        print(f"\nBaseline written to {BASELINE}")
+
+    if args.generate:
+        _run_generation(settings, questions, embedder, args.dump, args)
+
     if args.json:
         args.json.write_text(
             json.dumps([r.__dict__ for r in results], indent=2), encoding="utf-8"
         )
-    return 0
+    return 1 if problems else 0
+
+
+def _round_robin_by_type(questions: list[Question]) -> list[Question]:
+    """Interleave the four question types.
+
+    A daily quota means most runs are partial, and a partial run taken in file
+    order measures whatever type happens to come first — the last attempt spent
+    its whole budget on `procedural` and never asked a single unanswerable
+    question, which is exactly the one that carries the refusal metric.
+    """
+    buckets: dict[str, list[Question]] = {}
+    for question in questions:
+        buckets.setdefault(question.type, []).append(question)
+
+    ordered: list[Question] = []
+    while any(buckets.values()):
+        for bucket in buckets.values():
+            if bucket:
+                ordered.append(bucket.pop(0))
+    return ordered
+
+
+def _run_generation(settings, questions, embedder, dump, args) -> None:
+    """The generation arm. Separate because it costs money and takes minutes."""
+    from dataclasses import replace as replace_settings
+
+    from eval.generation import AnswerRecord, GenerationResult, run_generation_arm
+    from query.generate import build_generator
+
+    # A free-tier daily quota does not stretch to 64 questions, so answers
+    # accumulate across runs instead of restarting from nothing each day.
+    done: dict[str, AnswerRecord] = {}
+    if CHECKPOINT.exists() and not args.fresh:
+        for raw in json.loads(CHECKPOINT.read_text(encoding="utf-8")):
+            record = AnswerRecord(**raw)
+            if not record.error:
+                done[record.question_id] = record
+        print(f"Resuming: {len(done)} answers already recorded in {CHECKPOINT.name}")
+
+    if args.gen_model:
+        settings = replace_settings(settings, gen_model=args.gen_model)
+    pending = _round_robin_by_type([q for q in questions if q.id not in done])
+    if args.gen_limit:
+        pending = pending[: args.gen_limit]
+
+    print(
+        f"\nGenerating {len(pending)} answers with {settings.gen_model} "
+        f"({len(done)} already recorded) — this calls the API.\n"
+    )
+    generator = build_generator(settings)
+
+    def progress(record):
+        mark = "REFUSED" if record.refused else ("ERROR" if record.error else "ok")
+        accuracy = record.citation_accuracy
+        detail = f"{record.citations} cites" + (
+            f", {accuracy:.0%} on-topic" if accuracy is not None else ""
+        )
+        print(f"  {record.question_id:28} {mark:8} {detail}")
+
+    with Store(settings.store_dir) as store:
+        result = run_generation_arm(
+            pending, store, embedder, generator, is_hit, on_record=progress
+        )
+
+    # Merge with what earlier runs collected, then checkpoint before reporting:
+    # a crash in the reporting code must not cost the API calls.
+    fresh = {r.question_id: r for r in result.records if not r.error}
+    merged = {**done, **fresh}
+    result = GenerationResult(
+        records=list(merged.values()) + [r for r in result.records if r.error],
+        stopped_early=result.stopped_early,
+    )
+    CHECKPOINT.write_text(
+        json.dumps([r.__dict__ for r in merged.values()], indent=2), encoding="utf-8"
+    )
+
+    answered = len(result.completed)
+    print(
+        f"\n{answered}/{len(questions)} questions answered "
+        f"({len(result.errors)} failed)."
+    )
+    if result.stopped_early:
+        print(
+            "Stopped early: the daily quota is exhausted. Re-run tomorrow to "
+            f"continue — {CHECKPOINT.name} keeps what completed."
+        )
+    if answered < len(questions):
+        print("PARTIAL RUN — the numbers below describe only the questions that ran.")
+
+    print("\n| Generation metric | Value |")
+    print("|---|---|")
+    print(f"| Citation accuracy | {result.citation_accuracy:.2f} |")
+    print(f"| Answers with an uncited claim | {result.uncited_claim_rate:.2f} |")
+    refusal = result.refusal_rate
+    asked = len([r for r in result.unanswerable if not r.error])
+    print(
+        f"| Refusal rate (unanswerable) | "
+        + (f"{refusal:.2f} (n={asked})" if refusal is not None else "not measured")
+        + " |"
+    )
+    print(f"| False refusals (answerable) | {result.false_refusal_rate:.2f} |")
+    print(f"| Latency p50 | {result.latency(0.5):.0f}ms |")
+    print(f"| Latency p95 | {result.latency(0.95):.0f}ms |")
+    print(f"| Cost per query | ${result.cost_per_query:.5f} |")
+
+    if bad := [r for r in result.answerable if r.uncited]:
+        print(f"\nUncited claims in {len(bad)} answers:")
+        for record in bad[:5]:
+            print(f"  {record.question_id}: {record.uncited[0][:90]}")
+
+    if wrong := [r for r in result.unanswerable if not r.refused and not r.error]:
+        print(f"\nShould have refused but did not: {', '.join(r.question_id for r in wrong)}")
+
+    if dump:
+        lines = []
+        for record in result.records:
+            lines.append(f"### {record.question_id} ({record.type})")
+            lines.append(f"**Q:** {record.question}\n")
+            lines.append(record.error or record.text)
+            lines.append(
+                f"\n_{record.citations} citations, {record.good_citations} on-topic, "
+                f"{len(record.uncited)} uncited claims, {record.latency_ms:.0f}ms_\n"
+            )
+        dump.write_text("\n".join(lines), encoding="utf-8")
+        print(f"\nAnswers written to {dump} — the citation-accuracy proxy is only a proxy; read them.")
 
 
 if __name__ == "__main__":

@@ -334,3 +334,26 @@
   type: unanswerable
   question: how do I replace the battery myself with a heat gun
   expect: []
+
+# The hardest refusals: plausible phone questions the manuals simply do not
+# answer. A system that refuses only on washing machines has learned topic
+# matching, not grounding.
+- id: unanswerable-battery-cycles
+  type: unanswerable
+  question: how many charge cycles before the battery drops to 80 percent capacity
+  expect: []
+
+- id: unanswerable-benchmark
+  type: unanswerable
+  question: what antutu score does this phone get
+  expect: []
+
+- id: unanswerable-carrier-unlock
+  type: unanswerable
+  question: how do I unlock my phone from safaricom to use another network
+  expect: []
+
+- id: unanswerable-future-update
+  type: unanswerable
+  question: when will this phone get the next android version
+  expect: []
