@@ -8,6 +8,13 @@ Test stack: `pytest`. Anything touching Gemini is mocked in unit tests; a small 
 `@pytest.mark.live` tests hit the real API and are excluded by default
 (`pytest -m "not live"`).
 
+> **⚠️ Corpus and embedding backend changed on 2026-08-20 — see
+> [Corpus reset](#corpus-reset-2026-08-20) at the bottom.** The 28-manual corpus was
+> deleted and replaced with a 2-file placeholder. Every measured number recorded in
+> Phases 1–4 below (4,630 chunks, R@5 0.93, MRR 0.844) was taken on the old corpus with
+> the old embedder and **is not currently reproducible**. The numbers are kept as a
+> record of what was measured, not as a description of the store on disk today.
+
 ---
 
 ## Phase 0 — Foundation ✅ *complete — 23 tests green in ~5s*
@@ -176,6 +183,11 @@ none without a section path; 3 fragment-looking paths out of 3,442, all false po
 
 ## Phase 3 — Embed & index ✅ *complete — 4,630 × 384-dim vectors; 146 tests green*
 
+> **Superseded 2026-08-20.** The backend is now `gemini-embedding-001` at 768 dims
+> (`EMBED_BACKEND=gemini` in `.env`), and the store holds 43 vectors, not 4,630. The
+> local-BGE rationale below is still the reason `LocalEmbedder` exists and stays
+> interchangeable — it is no longer what runs. See [Corpus reset](#corpus-reset-2026-08-20).
+
 **Build**
 - [x] `ingest/embed.py` — batch to `gemini-embedding-001`, `RETRIEVAL_DOCUMENT` task type
 - [x] Retry with exponential backoff on 429/5xx, honouring the server's `retryDelay`
@@ -307,6 +319,12 @@ Default moved to **`gemini-3.7-flash`**, verified working against this key. Pinn
 `gemini-flash-latest` was returning 503 when probed. The cost constants in
 `query/generate.py` are still the old 2.5-flash rates and are marked UNVERIFIED.
 
+**Model change 2026-08-20:** generation now runs **`gemini-3.5-flash-lite`**, set via
+`GEN_MODEL` in `.env` (the `config.py` default is still `gemini-3.7-flash`). ID verified
+against `client.models.list()` before the switch, per the "verify model IDs" rule. The
+cost constants remain UNVERIFIED and are now wrong in a second way — they are 2.5-flash
+rates being applied to flash-lite pricing.
+
 **Tests**
 - [x] `test_citation_parsing` — `[1]`, `[2][3]`, repeated `[1]`, out-of-range `[9]`
 - [x] `test_every_claim_cited` → `uncited_sentences()` plus three tests around it
@@ -383,28 +401,114 @@ gap that run-through exists to catch.
 
 ---
 
-## Phase 7 — Evaluation
+## Phase 7 — Evaluation 🔶 *built, not re-measured — 286 tests green in 130s*
 
 **Build**
-- [ ] Finalize 40 questions across four types: factual / procedural / spec-table / unanswerable
-- [ ] Metrics: recall@5, MRR, citation accuracy, refusal rate, p50+p95 latency, cost per query
-- [ ] Ablation runner across all four retrieval modes
-- [ ] Results table + short writeup in `eval/RESULTS.md`
-- [ ] Update README with the results summary (README itself written in Phase 0)
+- [x] 64 questions across four types — 16 factual / 28 procedural / 10 spec / 10
+      unanswerable (exceeds the 40 originally planned)
+- [x] Retrieval metrics: recall@1, recall@5, MRR, p50 + p95 latency
+- [x] Ablation runner across all four arms (BM25 / dense / hybrid / hybrid+rerank)
+- [x] `eval/RESULTS.md` — ablation table plus the per-question-type split that actually
+      justifies hybrid, and a section on why the reranker does not earn its place
+- [x] *Added*: `eval/generation.py` — the generation arm, scoring the **answer** and not
+      just the retrieval that fed it: citation accuracy, refusal rate, false-refusal
+      rate, uncited-claim rate, cost per query
+- [x] *Added*: `eval/answers.md` — every generated answer recorded for reading, since
+      aggregate scores hide the failures worth seeing
+- [x] *Added*: resumable checkpointing (`eval/generation_checkpoint.json`, gitignored as
+      a run artifact) — a 64-question generation sweep is too expensive to restart
+- [x] *Added*: daily-quota handling in `query/generate.py` — `QuotaExhausted` stops the
+      run instead of retrying. A per-minute 429 clears in seconds; a per-day one clears
+      tomorrow, and retrying it burned four attempts and ~14s of backoff per call until
+      a 64-question eval had spent its budget on the first few questions and reported
+      the rest as model failures.
+- [ ] Update README with the results summary — README still says "Phase 0"
 
-**Tests**
+**Tests** — 25 in `tests/test_eval.py`
+- [x] `test_all_question_types_covered` — each of the four types has ≥8 questions
+- [x] `test_metrics_math_mrr` / `test_metrics_math_recall_at_5` — parametrized against
+      hand-computed fixtures
+- [x] `test_question_ids_are_unique`, `test_unanswerable_questions_carry_no_gold_labels`
+- [x] `test_is_hit_matches_section_or_body`, `test_expect_text_narrows_a_coarse_section`
+- [x] Regression harness: `test_regression_passes_when_recall_holds`,
+      `test_regression_tolerates_small_noise`, `test_regression_fails_on_a_real_drop`,
+      `test_missing_baseline_is_not_a_failure`
+- [x] Citation scoring: scored against the chunk it points at, zero for a chunk not in
+      context, aggregated over citations rather than answers, `None` when uncited
+- [x] Rate metrics exclude what they should — refusal rate counts only unanswerable and
+      excludes errored questions, false-refusal counts only answerable, uncited-claim
+      rate ignores refusals and errors, cost excludes failed calls, latency percentiles
+      ignore errors
 - [ ] `test_eval_reproducible` — two runs on a fixed index give identical retrieval metrics
-- [ ] `test_all_question_types_covered` — each of the four types has ≥8 questions
-- [ ] `test_metrics_math` — recall@k and MRR verified against hand-computed fixtures
-- [ ] Regression: eval run wired into CI, fails if recall@5 drops >5% from the recorded baseline
+- [ ] Regression wired into CI (the harness exists and is tested; nothing runs it)
 
-**Exit gate:** `eval/RESULTS.md` exists with the ablation table and honest numbers — including the questions the system gets wrong.
+**Exit gate:** ⏳ **blocked on corpus, not on code.** `eval/RESULTS.md` exists with the
+ablation table and an honest account of what the system gets wrong — but it is measured
+on the deleted 28-manual corpus and says so in its own first line. The gold set in
+`eval/questions.yaml` references chunks and pages that no longer exist. Re-running the
+sweep against today's 43-chunk placeholder would produce numbers, and every one of them
+would be meaningless: R@5 over 43 chunks is near-free when 5 results cover most of the
+corpus, and hybrid-vs-each-half has no room to show a difference.
+
+**Decision (2026-08-20):** leave `eval/` untouched until a real manual lands. Rebuild
+the gold set first, then re-measure. Do not "fix" the stale files in the meantime.
+
+---
+
+## Corpus reset (2026-08-20)
+
+The 28-manual corpus was deleted at the user's request and replaced with a placeholder
+pending a real manual. What changed:
+
+| | Before | After |
+|---|---|---|
+| Manuals | 28 (5,108 pages, 197 MB) | 2 A05 excerpts (14 pages, 648 KB) |
+| Chunks | 4,630 | 43 |
+| Embedder | `bge-small-en-v1.5`, local, 384-dim | `gemini-embedding-001`, 768-dim |
+| Generation | `gemini-3.7-flash` | `gemini-3.5-flash-lite` |
+| Ingest wall time | ~14 min | **16s** |
+
+**The two PDFs are excerpts, not manuals** — 3 pages of "Getting started" and 11 pages
+of "Apps and features" starting at manual page 30. Page numbers in citations therefore
+do not correspond to a real A05 manual's pagination. They were renamed to the
+convention `ingest/metadata.py` expects (`SM-A055F_UG_EN_*.pdf`) because the scanner
+skips anything whose filename carries no language token.
+
+**Why the embedder changed.** The local backend cost ~150s of cold start per process,
+of which ~140s was `import torch` + `import sentence_transformers` — before any weights
+loaded. Measured warm: sentence-transformers 116.4s, torch 24.0s, faiss 2.7s, BGE
+weights 8.6s, first encode 0.8s, subsequent encodes 0.08s. In the Streamlit app this
+surfaced as a ~3-minute wait on first page render. Gemini embeddings remove the imports
+entirely.
+
+**The original rationale for local embeddings still stands and still applies later:**
+the free tier caps at 1,000 items/day and the old corpus needed 4,630. At 43 chunks that
+constraint is inert. If a real manual pushes the chunk count back into the thousands,
+either re-quota or move BGE to an ONNX runtime (same weights, same vector space, seconds
+of import instead of minutes) rather than reverting to torch.
+
+`GeminiEmbedder` and `LocalEmbedder` remain interchangeable behind `build_embedder()`,
+as CLAUDE.md requires. The embedding cache keys on `(model, task_type, dim, text)`, so
+the backend switch was a clean full miss rather than a silent poisoning — the 43 stale
+384-dim vectors were deleted from `data/cache/embeddings.db` by hand.
+
+**Still outstanding from this reset:**
+- [ ] Real A05 manual — everything above is placeholder
+- [ ] Rebuild `eval/questions.yaml` gold set, then re-run the ablation
+- [ ] `README.md` still says "Phase 0"
+- [ ] Cost constants in `query/generate.py` are 2.5-flash rates applied to flash-lite
+- [ ] Rotate the API key — it was pasted into `.env.example` (never committed; caught
+      and reverted before the Phase 7 commit) and appears in a chat transcript
 
 ---
 
 ## Cross-cutting
 
-- [ ] `pytest -m "not live"` green and under 60s at every phase gate
+- [x] `pytest -m "not live"` green at every phase gate — **286 passed, 7 deselected**
+      (2026-08-20). No longer under 60s: 130s, dominated by Windows Defender scanning
+      the venv during import. Real-time protection is on; excluding `.venv/` is the fix.
 - [ ] Live tests runnable on demand and documented in the README
-- [ ] No secrets in the repo; `data/` never committed
-- [ ] Every phase's exit gate recorded (pass/fail + date) as you go
+- [x] No secrets in the repo; `data/` never committed — verified 2026-08-20 with
+      `git log -S`, which confirms no key ever reached history
+- [ ] Every phase's exit gate recorded (pass/fail + date) as you go — Phases 5, 6 and 7
+      all still carry ⏳ gates; 5 and 7 are blocked on corpus, 6 on a human run-through

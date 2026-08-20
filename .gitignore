@@ -6,3 +6,7 @@ logs/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Resume state for the generation eval, not a result. Rebuildable, and it pins
+# answers to whatever corpus was on disk when the sweep ran.
+eval/generation_checkpoint.json
