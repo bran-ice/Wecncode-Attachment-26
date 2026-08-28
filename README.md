@@ -63,23 +63,60 @@ previous store serving.
 
 ## Stack
 
-| Component | Choice |
-|---|---|
-| Embeddings | Gemini `gemini-embedding-001`, 768-dim (local `bge-small-en-v1.5` interchangeable via `EMBED_BACKEND`) |
-| Generation | Gemini `gemini-3.5-flash-lite` |
-| Keyword index | SQLite FTS5 (BM25) |
-| Vector index | FAISS `IndexIDMap2` over `IndexFlatIP` (exact search) |
-| Reranker | `bge-reranker-base` cross-encoder, local — **not in the serving path**, eval arm only |
-| PDF parsing | PyMuPDF |
-| UI | Streamlit |
+### Models
 
-Both embedding backends stay interchangeable behind `build_embedder()`. Local BGE avoids
-the free tier's 1,000-items/day cap, which matters at corpus scale — but it drags in
-`torch` and `sentence-transformers`, ~150s of cold start per process before a single
-vector is computed. Gemini embeddings remove that entirely at the cost of a network round
-trip per query. Switching backends changes the vector dimension, so it requires a full
-re-ingest; the embedding cache keys on `(model, task_type, dim, text)` precisely so a
-stale vector can never be served into a new index.
+| Role | Model | Notes |
+|---|---|---|
+| Embeddings | Gemini `gemini-embedding-001` | 768-dim — truncated from the 3072 default: 4× smaller for negligible quality loss |
+| Generation | Gemini `gemini-3.5-flash-lite` | pinned, never a `-latest` alias |
+
+Available but **not active**:
+
+| Role | Model | Status |
+|---|---|---|
+| Embeddings (alt) | `BAAI/bge-small-en-v1.5` | 384-dim local — swap in with `EMBED_BACKEND=local` |
+| Reranker | `BAAI/bge-reranker-base` | 278M cross-encoder — eval arm only, no serving-path caller |
+
+### Libraries
+
+| Component | Package | Version |
+|---|---|---|
+| Runtime | Python | 3.14.6 |
+| PDF parsing | PyMuPDF | 1.28.2 |
+| Vector index | faiss-cpu | 1.15.0 |
+| Keyword index | SQLite FTS5 | 3.50.4 (stdlib `sqlite3`) |
+| LLM client | google-genai | 2.18.1 |
+| Numerics | NumPy | 2.5.2 |
+| UI | Streamlit | 1.61.1 |
+| Config | python-dotenv | 1.2.2 |
+| Eval data | PyYAML | 6.0.3 |
+| Tests | pytest | 9.1.1 |
+
+`torch`, `transformers`, `sentence-transformers` and `scikit-learn` are installed via
+`requirements.txt` but **nothing imports them on the active path** — they exist for the
+local-embedding backend only.
+
+### Index structures
+
+- **FAISS** `IndexIDMap2` over `IndexFlatIP` — exact search, no ANN approximation.
+  Vectors are L2-normalized once at build, so inner product equals cosine.
+- **SQLite FTS5** with porter tokenization, kept in sync by SQL triggers rather than
+  caller discipline.
+- **Embedding cache** — a separate SQLite DB keyed on `(model, task_type, dim, text)`,
+  living outside `data/store/` so the atomic swap can't destroy it.
+
+### On the two embedding backends
+
+Both stay interchangeable behind `build_embedder()`. Local BGE avoids the free tier's
+1,000-items/day cap, which matters at corpus scale — but it drags in `torch` and
+`sentence-transformers`: ~150s of cold start per process before a single vector is
+computed, of which ~140s is import alone. Gemini embeddings remove that entirely at the
+cost of a network round trip per query.
+
+Switching backends changes the vector dimension and therefore requires a full re-ingest.
+The cache key includes model and dimension precisely so a stale vector can never be
+served into a new index — a backend switch is a clean total miss, never a silent
+mismatch.
 
 ## Setup
 
