@@ -9,6 +9,10 @@ for architecture and [`Phases.md`](./Phases.md) for the build checklist — **`P
 the source of truth for what's done and what's next.** Check the boxes as you complete
 work, and record what a phase's exit gate actually showed.
 
+[`CHUNKING.md`](./CHUNKING.md) explains how a PDF becomes retrievable chunks — read it
+before touching `ingest/chunk.py`. [`PIPELINE.html`](./PIPELINE.html) holds the data-flow
+diagrams (open in a browser).
+
 `CLAUDE.local.md` (gitignored) holds machine-specific notes — local paths, environment
 quirks, scratch findings. Shared rules belong here; personal ones belong there.
 
@@ -31,10 +35,13 @@ excerpts — 43 chunks, 14 pages. Consequences that will bite if you forget them
   cover most of the corpus, and hybrid-vs-each-half has no room to show a difference.
 - Citation page numbers don't match a real A05 manual: one excerpt starts at manual
   page 30, so its internal pagination is offset. That is not a citation bug.
+- `eval_out.txt` in the repo root is untracked old-corpus output from 2026-08-16. It is
+  history like the rest of `eval/`, not a current measurement.
 
 ## Commands
 
 ```powershell
+.venv/Scripts/streamlit.exe run app.py                   # the chat UI — the actual product
 .venv/Scripts/python.exe -m pytest -m "not live"        # default suite
 .venv/Scripts/python.exe -m pytest tests/test_retrieve.py::test_name   # one test
 .venv/Scripts/python.exe -m ingest.acquire --scan        # local PDFs -> catalog/manifest.json
@@ -42,11 +49,14 @@ excerpts — 43 chunks, 14 pages. Consequences that will bite if you forget them
 .venv/Scripts/python.exe -m ingest --dry-run --limit 2   # parse+chunk only, no API
 .venv/Scripts/python.exe -m scripts.ask "how do I enable always on display"
 .venv/Scripts/python.exe -m scripts.ask --mode bm25 "EP-TA845"   # or --mode dense
+.venv/Scripts/python.exe -m scripts.ask --answer "how do I take a screenshot"  # cited answer
 .venv/Scripts/python.exe -m scripts.dump_chunks --sample 30      # Phase 2 human gate
 .venv/Scripts/python.exe -m eval.run_eval                # full ablation → eval/RESULTS.md
 ```
 
 `scripts/` is for iterating on retrieval without the UI; it is throwaway, not API.
+`scripts.ask` retrieves only unless given `--answer`, which calls Gemini; `--quiet`
+then hides the raw chunks. The Streamlit app is what Phase 6's human gate exercises.
 
 `python -m ingest` reads `data/catalog/manifest.json` and fails with *"No manuals in the
 manifest"* if it is absent — `--scan` builds it from whatever is in `data/raw/`. `--scan`
@@ -78,7 +88,15 @@ These are load-bearing. Breaking one produces failures that surface phases later
 from the cause.
 
 - **Two pipelines, one contract.** `ingest/` and `query/` share only `core/storage.py`.
-  They must not import from each other.
+  They must not import from each other. `app.py` is the composition root and the one
+  place exempt: it imports `build_embedder` from `ingest.embed` and injects the embedder
+  into `ChatSession`, which is why `query/retrieve.py` can call `embed_query()` without
+  importing `ingest/`. Wire new cross-pipeline dependencies the same way — inject at
+  `app.py`, don't import across.
+- **`query/session.py` is the seam the UI talks to.** `ChatSession` owns history and
+  drives expand → retrieve → generate; `check_store_ready()` produces the actionable
+  "no store yet" message. A traceback surfacing in the UI usually passes through
+  `ChatSession.ask`, so read it before assuming the fault is in retrieval or generation.
 - **Atomic store swaps.** Build into `store.new`, swap on success, keep `store.old` until
   the swap lands. A crashed ingest must leave the previous store serving.
 - **`chunk_id` *is* the FAISS vector id** (`IndexIDMap2`). Don't introduce a side mapping;
@@ -110,7 +128,7 @@ from the cause.
 - Prefer **relative** assertions for retrieval quality (hybrid beats each half alone) over
   absolute thresholds — absolute numbers depend on the corpus and will make the suite
   brittle. Don't assert that rerank improves MRR; measurement says it doesn't.
-- The default suite is 286 tests in ~130s on this machine. Most of that is antivirus
+- The default suite is 287 tests in ~130s on this machine. Most of that is antivirus
   scanning the venv during import, not tests running — it is not a regression.
 - Two gates are deliberately human: reading 30 sampled chunks in Phase 2, and driving 10
   conversations in Phase 6. Don't try to automate these away — incoherent chunks pass
@@ -127,8 +145,14 @@ Currently live (set in `.env`, 2026-08-20):
 | | `config.py` default | `.env` override |
 |---|---|---|
 | `embed_backend` | `local` | **`gemini`** |
-| `embed_model` | `gemini-embedding-001` | same, 768-dim via `EMBED_DIM` |
+| `embed_model` | `gemini-embedding-001` | same (not overridden) |
 | `gen_model` | `gemini-3.7-flash` | **`gemini-3.5-flash-lite`** |
+
+The env vars `load_settings()` actually reads are `GEMINI_API_KEY`, `DATA_ROOT`,
+`EMBED_MODEL`, `EMBED_BACKEND`, `LOCAL_EMBED_MODEL`, `GEN_MODEL`, `RERANK`,
+`RERANK_MODEL` and `LOG_LEVEL` — nothing else in `.env` has any effect. In particular
+**the 768 dimension is not configurable**: `EMBED_DIM` is a module constant in
+`ingest/embed.py`, not a setting. Changing it invalidates every vector in the store.
 
 - **The embedding backend switched away from local BGE for cold-start latency.** Local
   cost ~150s per process — ~140s of it `import torch` + `import sentence_transformers`
