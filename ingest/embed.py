@@ -39,6 +39,16 @@ MAX_RETRIES = 8
 ITEMS_PER_MINUTE = 90
 _RETRY_DELAY_RE = re.compile(r"retryDelay['\"]?:\s*['\"]?(\d+(?:\.\d+)?)s")
 
+# Transport failures never carry an HTTP status — the connection died before a
+# response existed. A dropped TLS handshake ("UNEXPECTED_EOF_WHILE_READING") is
+# the common one on flaky links, and it is exactly what a retry fixes. Kept as a
+# local copy rather than shared with query/generate.py: the two pipelines share
+# only core/storage.py, and a tuple is cheaper to duplicate than that is to widen.
+_RETRYABLE = (
+    "429", "RESOURCE_EXHAUSTED", "503", "500", "UNAVAILABLE", "timeout",
+    "SSL", "EOF occurred", "ConnectError", "ConnectTimeout", "Connection reset",
+)
+
 
 class RateLimiter:
     """Sliding-window limiter over the last 60 seconds."""
@@ -175,10 +185,7 @@ class GeminiEmbedder:
                 ]
             except Exception as exc:
                 message = str(exc)
-                retryable = any(
-                    token in message
-                    for token in ("429", "RESOURCE_EXHAUSTED", "503", "500", "UNAVAILABLE", "timeout")
-                )
+                retryable = any(token in message for token in _RETRYABLE)
                 if not retryable or attempt == MAX_RETRIES - 1:
                     raise EmbeddingError(f"embedding failed: {message}") from exc
                 # Gemini tells us how long to wait; trust it over our guess.

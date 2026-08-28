@@ -181,6 +181,18 @@ def test_non_retryable_error_fails_fast(tmp_path):
     assert len(models.calls) == 1  # no pointless retries
 
 
+def test_dropped_tls_handshake_is_retried(tmp_path):
+    """A transport failure carries no HTTP status, so a status-token-only retry
+    check treats it as fatal and kills the chat turn on one flaky connection."""
+    error = "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol"
+    models = FakeModels(dim=8, fail_times=2, error=error)
+    embedder = GeminiEmbedder("k", dim=8, cache=EmbeddingCache(tmp_path / "c.db"),
+                              client=FakeClient(models), sleep=lambda s: None,
+                              limiter=unlimited())
+    assert embedder.embed_texts(["alpha"]).shape == (1, 8)
+    assert len(models.calls) == 3
+
+
 def test_gives_up_after_max_retries(tmp_path):
     models = FakeModels(dim=8, fail_times=99)
     embedder = GeminiEmbedder("k", dim=8, cache=EmbeddingCache(tmp_path / "c.db"),

@@ -52,7 +52,13 @@ MAX_SNIPPET_CHARS = 1200
 MAX_RETRIES = 4
 # Same set ingest/embed.py treats as transient: overload and rate limiting are
 # worth waiting out, a 404 on a retired model id is not.
-_RETRYABLE = ("429", "RESOURCE_EXHAUSTED", "503", "500", "UNAVAILABLE", "timeout")
+# Transport failures never carry an HTTP status — the connection died before a
+# response existed. A dropped TLS handshake ("UNEXPECTED_EOF_WHILE_READING") is
+# the common one on flaky links, and it is exactly what a retry fixes.
+_RETRYABLE = (
+    "429", "RESOURCE_EXHAUSTED", "503", "500", "UNAVAILABLE", "timeout",
+    "SSL", "EOF occurred", "ConnectError", "ConnectTimeout", "Connection reset",
+)
 
 # A per-*minute* 429 clears in seconds. A per-*day* one clears tomorrow, and
 # retrying it burns four attempts and ~14s of backoff per call against a quota
