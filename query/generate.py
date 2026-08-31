@@ -164,13 +164,17 @@ def build_prompt(question: str, blocks: Sequence[ContextBlock]) -> str:
 
 
 def parse_citations(
-    text: str, blocks: Sequence[ContextBlock]
+    text: str, blocks: Sequence[ContextBlock], store=None
 ) -> tuple[list[Citation], list[int]]:
     """Resolve `[n]` markers against the blocks actually sent.
 
     Returns the resolved citations in first-appearance order, plus the markers
     that resolved to nothing — those are hallucinated and must not be rendered
     as links, but the caller may want to count them.
+
+    Figures are attached here, with `store`, because citation is the signal
+    that an answer needed a passage. A figure on a retrieved-but-uncited chunk
+    illustrates something the answer never said, so it is not rendered.
     """
     by_marker = {block.marker: block for block in blocks}
     citations: list[Citation] = []
@@ -197,9 +201,26 @@ def parse_citations(
                 page_end=chunk.page_end,
                 section_path=chunk.section_path,
                 snippet=chunk.text[:MAX_SNIPPET_CHARS],
+                figures=_figures_for(store, chunk),
             )
         )
     return citations, dangling
+
+
+def _figures_for(store, chunk) -> list:
+    """The figures on a cited chunk, or none if the store has no figures.
+
+    Failure here is cosmetic — a missing illustration must never cost the user
+    a correct, cited answer — so a store predating the figures tables degrades
+    to a text-only answer rather than raising.
+    """
+    if store is None or chunk.chunk_id is None:
+        return list(chunk.figures)
+    try:
+        return store.get_figures(chunk.chunk_id)
+    except Exception as exc:
+        log.debug("Figure lookup failed for chunk %s (%s)", chunk.chunk_id, exc)
+        return []
 
 
 def uncited_sentences(text: str) -> list[str]:
@@ -377,11 +398,15 @@ def answer_question(
     generator: GeminiGenerator,
     store=None,
     doc_models: Optional[dict[str, str]] = None,
+    resolved_question: Optional[str] = None,
 ) -> Answer:
     """Generate one grounded answer over already-retrieved chunks.
 
     Retrieval is the caller's job — this stays separate so the Phase 7 ablation
     can vary the retrieval arm without touching generation.
+
+    `resolved_question` is the pronoun-resolved rewrite from `query/expand.py`,
+    and is what the model is asked. See `stream_answer` for why.
     """
     started = time.monotonic()
 
@@ -400,10 +425,11 @@ def answer_question(
     blocks = build_context(hits, doc_models)
 
     before_input, before_output = generator.input_tokens, generator.output_tokens
-    raw = generator.generate(build_prompt(question, blocks))
+    raw = generator.generate(build_prompt(resolved_question or question, blocks))
 
     return _assemble(
-        question, raw, blocks, hits, generator, before_input, before_output, started
+        question, raw, blocks, hits, generator, before_input, before_output, started,
+        store=store,
     )
 
 
@@ -413,12 +439,22 @@ def stream_answer(
     generator: GeminiGenerator,
     store=None,
     doc_models: Optional[dict[str, str]] = None,
+    resolved_question: Optional[str] = None,
 ) -> Iterator[str | Answer]:
     """Yield text as it arrives, then the assembled `Answer` last.
 
     Citations cannot be resolved until the text is complete — a marker can be
     split across two streamed pieces — so the UI streams the prose and attaches
     sources at the end.
+
+    `resolved_question` is the rewrite `query/expand.py` produced for a
+    follow-up, and is what the model is asked. "Explain it step by step" has no
+    antecedent in the context, so a model told to use only the context correctly
+    refuses it — the retrieval was right, the question was the part that still
+    needed history. Only the question is substituted: the context blocks remain
+    retrieved chunks and nothing else, so no prior turn can be cited.
+
+    `Answer.question` keeps what the user actually typed.
     """
     started = time.monotonic()
 
@@ -437,13 +473,13 @@ def stream_answer(
 
     before_input, before_output = generator.input_tokens, generator.output_tokens
     pieces: list[str] = []
-    for piece in generator.stream(build_prompt(question, blocks)):
+    for piece in generator.stream(build_prompt(resolved_question or question, blocks)):
         pieces.append(piece)
         yield piece
 
     yield _assemble(
         question, "".join(pieces), blocks, hits, generator,
-        before_input, before_output, started,
+        before_input, before_output, started, store=store,
     )
 
 
@@ -456,10 +492,11 @@ def _assemble(
     before_input: int,
     before_output: int,
     started: float,
+    store=None,
 ) -> Answer:
     refused = is_refusal(raw)
     text = clean_refusal(raw) if refused else raw.strip()
-    citations, dangling = parse_citations(text, blocks)
+    citations, dangling = parse_citations(text, blocks, store=store)
 
     if dangling:
         log.warning("Dropped %d citation(s) with no matching block", len(dangling))

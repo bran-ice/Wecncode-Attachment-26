@@ -19,7 +19,8 @@ import re
 from typing import Iterable, Optional
 
 from core.logging_setup import get_logger
-from core.schema import Chunk
+from core.schema import Chunk, Figure
+from ingest.figures import figure_rel_path
 from ingest.parse import Block, ParsedDoc
 
 log = get_logger(__name__)
@@ -73,10 +74,11 @@ def chunk_document(
         )
 
     log.info(
-        "%s: %d chunks (median %d tokens)",
+        "%s: %d chunks (median %d tokens), %d carrying a figure",
         parsed.path.name,
         len(chunks),
         _median([c.token_count for c in chunks]) if chunks else 0,
+        sum(1 for c in chunks if c.figures),
     )
     return chunks
 
@@ -180,12 +182,15 @@ def _chunk_section(
     page_start: Optional[int] = None
     page_end: Optional[int] = None
     carry = ""
+    figures: list[Figure] = []
 
     def emit() -> None:
-        nonlocal buffer, tokens, page_start, page_end, carry
+        nonlocal buffer, tokens, page_start, page_end, carry, figures
         text = "\n\n".join(buffer).strip()
         if not text:
-            buffer, tokens = [], 0
+            # Figures with no prose around them have nothing to illustrate, so
+            # they are dropped rather than carried to an unrelated chunk.
+            buffer, tokens, figures = [], 0, []
             return
         count = estimate_tokens(text)
         if count >= MIN_TOKENS or not out:
@@ -197,6 +202,7 @@ def _chunk_section(
                     page_start=page_start or 1,
                     page_end=page_end or page_start or 1,
                     token_count=count,
+                    figures=figures,
                 )
             )
             carry = _tail_overlap(text, overlap_tokens)
@@ -207,9 +213,26 @@ def _chunk_section(
             previous.text = f"{previous.text}\n\n{text}"
             previous.page_end = page_end or previous.page_end
             previous.token_count = estimate_tokens(previous.text)
-        buffer, tokens = [], 0
+            previous.figures.extend(figures)  # the figures fold in with the text
+        buffer, tokens, figures = [], 0, []
 
     for block in _split_oversized(blocks, target_tokens):
+        # A figure is a position, not content: it contributes no text and no
+        # tokens, and it never triggers a split. It simply lands on whichever
+        # chunk is open when reading order reaches it.
+        if block.is_figure():
+            if block.figure is not None:
+                figures.append(
+                    Figure(
+                        doc_id=doc_id,
+                        page=block.figure.page,
+                        rel_path=figure_rel_path(doc_id, block.figure.filename),
+                        width=block.figure.width,
+                        height=block.figure.height,
+                    )
+                )
+            continue
+
         block_tokens = estimate_tokens(block.text)
 
         # A table is a unit: splitting it strands rows from their header row.

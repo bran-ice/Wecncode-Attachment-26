@@ -164,6 +164,34 @@ def test_expanded_query_is_what_gets_searched(store):
     assert result.searched_as == "Galaxy S24 Ultra fast charging"
 
 
+def test_grounding_prompt_gets_the_resolved_question(store):
+    """The model is asked the rewrite, not the pronoun.
+
+    Retrieving the right chunks is not enough: asked "explain it step by step"
+    over a context that never says what "it" is, a generator restricted to the
+    context refuses — correctly, and uselessly.
+    """
+    generator = FakeGenerator(rewrite="how do I take a screenshot, step by step")
+    session = make_session(store, generator)
+    session.history.append(Turn("how do I take a screenshot", "Press Side + Vol Down [1]."))
+
+    result = run(session, "can you explain it step by step")
+
+    grounding = [p for p in generator.prompts if p.startswith("CONTEXT:")]
+    assert "QUESTION: how do I take a screenshot, step by step" in grounding[0]
+    # What the user typed is still what the UI shows and what the Answer records.
+    assert result.question == "can you explain it step by step"
+    assert result.answer.question == "can you explain it step by step"
+
+
+def test_unexpanded_question_reaches_grounding_unchanged(store):
+    generator = FakeGenerator()
+    session = make_session(store, generator)
+    run(session, "how do I take a screenshot")
+    grounding = [p for p in generator.prompts if p.startswith("CONTEXT:")]
+    assert "QUESTION: how do I take a screenshot" in grounding[0]
+
+
 # --- expansion ------------------------------------------------------------
 
 

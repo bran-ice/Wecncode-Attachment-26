@@ -16,25 +16,37 @@ diagrams (open in a browser).
 `CLAUDE.local.md` (gitignored) holds machine-specific notes — local paths, environment
 quirks, scratch findings. Shared rules belong here; personal ones belong there.
 
-Phases 0–7 are built. The exit gates for 5, 6 and 7 have **not** passed: 5 and 7 are
-blocked on the corpus (below), 6 needs a human run-through. `README.md` and `Phases.md`
+Phases 0–8 are built. The exit gates for 5, 6, 7 and 8 have **not** passed: 5 and 7 are
+blocked on the corpus (below), 6 and 8 need a human run-through. `README.md` and `Phases.md`
 were both brought current on 2026-08-20 and agree with the code — if they disagree in
 future, `Phases.md` wins.
 
-**The corpus on disk is a placeholder.** On 2026-08-20 the 28-manual corpus (4,630
-chunks) was deleted at the user's request and replaced with two short Galaxy A05
-excerpts — 43 chunks, 14 pages. Consequences that will bite if you forget them:
+**The corpus is one real A05 manual** (2026-08-31): `SM-A055F_UG_EU_Eng_Rev1.0_250507.pdf`,
+32 pages → 76 chunks, 9 figures. It replaced the two placeholder excerpts, which replaced
+the original 28-manual corpus. Two things about it:
+
+- **It has no PDF outline** (`get_toc()` → 0 entries), so section paths come from font
+  heuristics and are **flat** — no `chapter > section` ancestry. All 76 chunks still got
+  a non-empty path.
+- **It was renamed to scan correctly.** `SM-A05X_…` yields model `unknown`; `_CODE_RE`
+  needs `[SFAN]` + three digits. Always check the model `--scan` reports, not just that
+  it indexed the file.
+
+The notes below were written for the deleted placeholder corpus. What still holds:
 
 - The measured numbers still quoted in Phases 1–4 (R@5 0.93, MRR 0.844) came from the
   old corpus **and** the old embedder. They are not reproducible today.
 - `eval/` is stale **by decision**, not by neglect. The gold set in `eval/questions.yaml`
   references chunks and pages that no longer exist. Don't run `eval.run_eval` and report
-  its output as a quality signal, and don't "fix" the stale files. Rebuild the gold set
-  when a real manual lands, then re-measure.
-- Retrieval metrics are meaningless at this size — R@5 is near-free when five results
-  cover most of the corpus, and hybrid-vs-each-half has no room to show a difference.
-- Citation page numbers don't match a real A05 manual: one excerpt starts at manual
-  page 30, so its internal pagination is offset. That is not a citation bug.
+  its output as a quality signal, and don't "fix" the stale files. **A real manual has now
+  landed, so rebuilding the gold set against it is unblocked** — that is the next
+  measurement task, and it must come before any number is quoted again.
+- Retrieval metrics are still weak at 76 chunks — R@5 is cheap when five results cover a
+  large share of the corpus — but no longer meaningless the way they were at 43.
+- ~~Citation pages are offset~~ — that applied to the deleted excerpts, one of which
+  started at manual page 30. The current manual is paginated from its own page 1, so
+  cited pages are internally consistent. They still won't match a *full* A05 manual's
+  numbering, because this is the 32-page EU edition.
 - `eval_out.txt` in the repo root is untracked old-corpus output from 2026-08-16. It is
   history like the rest of `eval/`, not a current measurement.
 
@@ -47,6 +59,7 @@ excerpts — 43 chunks, 14 pages. Consequences that will bite if you forget them
 .venv/Scripts/python.exe -m ingest.acquire --scan        # local PDFs -> catalog/manifest.json
 .venv/Scripts/python.exe -m ingest                       # build the store
 .venv/Scripts/python.exe -m ingest --dry-run --limit 2   # parse+chunk only, no API
+.venv/Scripts/python.exe -m ingest --no-figures          # text-only store
 .venv/Scripts/python.exe -m scripts.ask "how do I enable always on display"
 .venv/Scripts/python.exe -m scripts.ask --mode bm25 "EP-TA845"   # or --mode dense
 .venv/Scripts/python.exe -m scripts.ask --answer "how do I take a screenshot"  # cited answer
@@ -108,8 +121,27 @@ from the cause.
   raises *"no such column: TA845"*, which is how part-number search silently dies.
 - **Vectors are L2-normalized once, at index build.** Inner product then equals cosine.
   Don't normalize again at query time in a way that assumes otherwise.
+- **Figures are display-only.** They never enter the grounding context, `embed_text()`,
+  or ranking — the generator is text-only and every `[n]` resolves to text on a page.
+  `figures`/`chunk_figures` deliberately do not touch `chunks`, so the FTS triggers and
+  the vector-id rule are unaffected. See `ingest/figures.py`.
+- **A figure renders only on the chunk it physically sits in, and only when that chunk is
+  cited.** Do not widen this to sibling chunks, the parent section, or the page range —
+  decided 2026-08-31 after measuring the consequence. Samsung puts the illustration under
+  a section intro while "how do I…" answers cite the procedure subsection, so figures
+  genuinely miss more often than they fire. **That is the accepted cost, not a bug to
+  fix.** A figure shown beside a procedure it does not depict is a claim the manual never
+  made, carrying the same authority as the cited text. If this is ever revisited the lever
+  is chunking — putting the figure and its procedure in one chunk — not a looser mapping.
+- **Figure PNGs live inside the store root** (`data/store/figures/<doc_id>/`), so
+  `staging_store()` swaps database, index and images together. Written anywhere else
+  they would outlive a failed ingest and no longer match the store that is serving.
 - **Chat history feeds query expansion only, never the grounding context.** Grounding
-  context is retrieved chunks and nothing else.
+  context is retrieved chunks and nothing else. The *question* in the grounding prompt is
+  the expander's rewrite (`ChatSession` passes `resolved_question`) — without it the model
+  refuses "explain it step by step" for having no antecedent, even when retrieval was
+  perfect. Substituting the question is not a breach; adding a prior turn to the context
+  blocks would be.
 
 ## Conventions
 
@@ -128,8 +160,10 @@ from the cause.
 - Prefer **relative** assertions for retrieval quality (hybrid beats each half alone) over
   absolute thresholds — absolute numbers depend on the corpus and will make the suite
   brittle. Don't assert that rerank improves MRR; measurement says it doesn't.
-- The default suite is 287 tests in ~130s on this machine. Most of that is antivirus
-  scanning the venv during import, not tests running — it is not a regression.
+- The default suite is 316 tests on this machine. Most of the wall time is antivirus
+  scanning the venv during import, not tests running — it is not a regression. If a run
+  takes many minutes, clear `%LOCALAPPDATA%\Temp\pytest-of-brani` before assuming a hang;
+  accumulated temp dirs have pushed a green suite past ten minutes.
 - Two gates are deliberately human: reading 30 sampled chunks in Phase 2, and driving 10
   conversations in Phase 6. Don't try to automate these away — incoherent chunks pass
   every assertion you could write for them.

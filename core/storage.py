@@ -29,7 +29,7 @@ from typing import Iterator, Optional, Sequence
 import numpy as np
 
 from core.logging_setup import get_logger
-from core.schema import Chunk, Document, RetrievedChunk
+from core.schema import Chunk, Document, Figure, RetrievedChunk
 
 log = get_logger(__name__)
 
@@ -69,6 +69,28 @@ CREATE TABLE IF NOT EXISTS chunks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunks_doc ON chunks(doc_id);
+
+-- Figures are display-only: nothing here feeds FTS or the vector index, and
+-- neither table touches `chunks`, so the FTS triggers and the
+-- chunk_id-is-the-vector-id rule are unaffected.
+CREATE TABLE IF NOT EXISTS figures (
+    figure_id INTEGER PRIMARY KEY,
+    doc_id    TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+    page      INTEGER NOT NULL,
+    rel_path  TEXT NOT NULL,   -- relative to the store root; see core.schema.Figure
+    width     INTEGER NOT NULL,
+    height    INTEGER NOT NULL,
+    UNIQUE (doc_id, rel_path)  -- content-addressed names dedupe a reused diagram
+);
+
+CREATE TABLE IF NOT EXISTS chunk_figures (
+    chunk_id  INTEGER NOT NULL REFERENCES chunks(chunk_id) ON DELETE CASCADE,
+    figure_id INTEGER NOT NULL REFERENCES figures(figure_id) ON DELETE CASCADE,
+    ordinal   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (chunk_id, figure_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chunk_figures_chunk ON chunk_figures(chunk_id);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     text,
@@ -258,6 +280,67 @@ class Store:
         self.conn.commit()
         return ids
 
+    def add_chunk_figures(self, chunks: Sequence[Chunk]) -> int:
+        """Persist the figures hanging off already-inserted chunks.
+
+        Called after `add_chunks`, because the link table needs the chunk_ids
+        it assigns. Figures are deduplicated on `(doc_id, rel_path)`: the same
+        rendered bytes get the same content-addressed name, so one diagram
+        reused across a manual is stored once and linked many times.
+        """
+        links = 0
+        cur = self.conn.cursor()
+        for chunk in chunks:
+            if not chunk.figures or chunk.chunk_id is None:
+                continue
+            for ordinal, figure in enumerate(chunk.figures):
+                cur.execute(
+                    """INSERT INTO figures (doc_id, page, rel_path, width, height)
+                       VALUES (?,?,?,?,?)
+                       ON CONFLICT(doc_id, rel_path) DO NOTHING""",
+                    (figure.doc_id, figure.page, figure.rel_path,
+                     figure.width, figure.height),
+                )
+                row = cur.execute(
+                    "SELECT figure_id FROM figures WHERE doc_id=? AND rel_path=?",
+                    (figure.doc_id, figure.rel_path),
+                ).fetchone()
+                figure.figure_id = int(row["figure_id"])
+                cur.execute(
+                    """INSERT INTO chunk_figures (chunk_id, figure_id, ordinal)
+                       VALUES (?,?,?)
+                       ON CONFLICT(chunk_id, figure_id) DO NOTHING""",
+                    (chunk.chunk_id, figure.figure_id, ordinal),
+                )
+                links += 1
+        self.conn.commit()
+        return links
+
+    def get_figures(self, chunk_id: int) -> list[Figure]:
+        """The figures to render alongside one chunk, in page order.
+
+        Read-only, like everything else the query pipeline touches.
+        """
+        rows = self.conn.execute(
+            """SELECT f.* FROM chunk_figures cf
+               JOIN figures f ON f.figure_id = cf.figure_id
+               WHERE cf.chunk_id = ?
+               ORDER BY cf.ordinal""",
+            (chunk_id,),
+        ).fetchall()
+        return [_row_to_figure(r) for r in rows]
+
+    def count_figures(self) -> int:
+        return int(self.conn.execute("SELECT COUNT(*) FROM figures").fetchone()[0])
+
+    def figure_path(self, figure: Figure) -> Path:
+        """Resolve a stored figure to a path on disk.
+
+        The database holds a store-relative path precisely so this join happens
+        at read time — the store directory is renamed by the atomic swap.
+        """
+        return self.root / figure.rel_path
+
     def get_chunk(self, chunk_id: int) -> Optional[Chunk]:
         row = self.conn.execute(
             "SELECT * FROM chunks WHERE chunk_id=?", (chunk_id,)
@@ -413,6 +496,17 @@ def _row_to_chunk(row: sqlite3.Row) -> Chunk:
         page_end=row["page_end"],
         token_count=row["token_count"],
         vector_id=row["vector_id"],
+    )
+
+
+def _row_to_figure(row: sqlite3.Row) -> Figure:
+    return Figure(
+        figure_id=row["figure_id"],
+        doc_id=row["doc_id"],
+        page=row["page"],
+        rel_path=row["rel_path"],
+        width=row["width"],
+        height=row["height"],
     )
 
 

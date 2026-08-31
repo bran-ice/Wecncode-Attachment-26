@@ -120,9 +120,19 @@ class ChatSession:
 
         # `stream_answer` receives chunks and the question only. No turn of
         # history is passed, and there is no parameter through which it could be.
+        #
+        # The *resolved* question goes to the model: a rewrite is the only thing
+        # that gives "explain it step by step" an antecedent, and without one a
+        # generator restricted to the context refuses a follow-up whose chunks
+        # were retrieved perfectly well. `searched_as` falls back to the raw
+        # question when nothing was rewritten.
         try:
             for piece in stream_answer(
-                question, retrieval.chunks, self.generator, store=self.store
+                question,
+                retrieval.chunks,
+                self.generator,
+                store=self.store,
+                resolved_question=result.searched_as,
             ):
                 if isinstance(piece, str):
                     yield piece

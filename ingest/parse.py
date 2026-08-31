@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from core.logging_setup import get_logger
+from ingest.figures import RenderedFigure, detect_figures, render_figure
 
 log = get_logger(__name__)
 
@@ -42,16 +43,25 @@ BOLD_FONTS = re.compile(r"-(6|7|8|9)00$|bold", re.IGNORECASE)
 
 @dataclass
 class Block:
-    """One paragraph, heading, or table from a manual."""
+    """One paragraph, heading, table, or figure from a manual.
+
+    A figure block carries no text — it is a position in reading order and
+    nothing else, which is what lets `chunk.py` attach it to the chunk whose
+    prose actually surrounds it rather than to whatever else shares its page.
+    """
 
     text: str
     page: int  # 1-based, matches what the reader sees cited
-    kind: str  # "heading" | "body" | "table"
+    kind: str  # "heading" | "body" | "table" | "figure"
     level: int = 0  # outline depth for headings
     section_path: str = ""
+    figure: Optional["RenderedFigure"] = None
 
     def is_heading(self) -> bool:
         return self.kind == "heading"
+
+    def is_figure(self) -> bool:
+        return self.kind == "figure"
 
 
 @dataclass
@@ -70,6 +80,7 @@ class ParsedDoc:
     n_pages: int = 0
     body_size: float = 0.0
     skipped_pages: int = 0
+    n_figures: int = 0
 
 
 def _normalize(text: str) -> str:
@@ -234,8 +245,18 @@ class _SectionTracker:
         return " > ".join(part for part in self.stack if part)
 
 
-def parse_pdf(path: str | Path, max_pages: Optional[int] = None) -> ParsedDoc:
-    """Parse one manual into blocks. Pure function of the file — no I/O beyond it."""
+def parse_pdf(
+    path: str | Path,
+    max_pages: Optional[int] = None,
+    figure_dir: Optional[Path] = None,
+) -> ParsedDoc:
+    """Parse one manual into blocks.
+
+    With `figure_dir`, illustrations are detected and rendered into it as PNGs,
+    and appear in `blocks` as figure blocks at their place in reading order.
+    Without it — dry runs, and every test that only cares about text — figures
+    are skipped entirely, so parsing stays a pure function of the file.
+    """
     import pymupdf
 
     path = Path(path)
@@ -274,6 +295,8 @@ def parse_pdf(path: str | Path, max_pages: Optional[int] = None) -> ParsedDoc:
         )
         expected = tracker.titles_on(page_no)
 
+        pending_figures = _render_page_figures(page, figure_dir)
+
         paragraph: list[str] = []
 
         def flush() -> None:
@@ -285,7 +308,22 @@ def parse_pdf(path: str | Path, max_pages: Optional[int] = None) -> ParsedDoc:
                     )
                 paragraph.clear()
 
+        def emit_figures_above(y: float) -> None:
+            """Emit any figure that the reader would have passed by line `y`.
+
+            Figures are placed by vertical position rather than appended at the
+            end of the page, so a figure sitting between two procedures is
+            attached to the one it illustrates, not to whichever ran last.
+            """
+            while pending_figures and pending_figures[0][0] < y:
+                _, rendered = pending_figures.pop(0)
+                flush()
+                parsed.blocks.append(
+                    Block("", page_no, "figure", 0, tracker.path(), figure=rendered)
+                )
+
         for line in lines:
+            emit_figures_above(line.y)
             level = _heading_level(line, body_size, expected)
             if level:
                 flush()
@@ -299,6 +337,7 @@ def parse_pdf(path: str | Path, max_pages: Optional[int] = None) -> ParsedDoc:
             paragraph.append(line.text)
 
         flush()
+        emit_figures_above(float("inf"))  # anything below the last line
 
         for table in tables:
             if markdown := _table_markdown(table):
@@ -306,16 +345,36 @@ def parse_pdf(path: str | Path, max_pages: Optional[int] = None) -> ParsedDoc:
                     Block(markdown, page_no, "table", section_path=tracker.path())
                 )
 
+    parsed.n_figures = sum(1 for b in parsed.blocks if b.is_figure())
+
     doc.close()
     log.info(
-        "%s: %d blocks from %d pages (body %.1fpt, skipped %d front-matter pages)",
+        "%s: %d blocks (%d figures) from %d pages "
+        "(body %.1fpt, skipped %d front-matter pages)",
         path.name,
         len(parsed.blocks),
+        parsed.n_figures,
         last - first_content_page + 1,
         body_size,
         parsed.skipped_pages,
     )
     return parsed
+
+
+def _render_page_figures(page, figure_dir: Optional[Path]) -> list[tuple[float, RenderedFigure]]:
+    """Detect and render this page's figures as `(top, rendered)`, top-down.
+
+    Rendering happens here, while the page is still open, rather than being
+    deferred: the alternative is reopening every PDF after parsing, and the
+    pixmap needs the live page object anyway.
+    """
+    if figure_dir is None:
+        return []
+    out: list[tuple[float, RenderedFigure]] = []
+    for detected in detect_figures(page):
+        if rendered := render_figure(page, detected, figure_dir):
+            out.append((detected.top, rendered))
+    return out
 
 
 def _heading_level(

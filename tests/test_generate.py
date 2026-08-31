@@ -107,6 +107,70 @@ def test_prompt_contains_every_block_and_the_question(hits, models):
     assert "how do I charge fast" in prompt
 
 
+# --- figures on citations -------------------------------------------------
+
+
+class FakeFigureStore:
+    """Just enough store to answer `get_figures`, recording what was asked."""
+
+    def __init__(self, by_chunk=None, raises=None):
+        self.by_chunk = by_chunk or {}
+        self.raises = raises
+        self.asked = []
+
+    def get_figures(self, chunk_id):
+        self.asked.append(chunk_id)
+        if self.raises:
+            raise self.raises
+        return self.by_chunk.get(chunk_id, [])
+
+
+def _figure(name="a.png", page=42):
+    from core.schema import Figure
+
+    return Figure(doc_id="abc123", page=page, rel_path=f"figures/abc123/{name}",
+                  width=237, height=496)
+
+
+def test_a_cited_chunk_carries_its_figures(hits, models):
+    """Citation is the signal that the answer needed the passage."""
+    store = FakeFigureStore({100: [_figure()]})
+    blocks = build_context(hits, models)
+    citations, _ = parse_citations("Tap it [1].", blocks, store=store)
+    assert [f.rel_path for f in citations[0].figures] == ["figures/abc123/a.png"]
+
+
+def test_an_uncited_chunk_contributes_no_figure(hits, models):
+    """Retrieved but unused: its picture illustrates nothing the answer said."""
+    store = FakeFigureStore({100: [_figure("one.png")], 101: [_figure("two.png")]})
+    blocks = build_context(hits, models)
+    citations, _ = parse_citations("Tap it [1].", blocks, store=store)
+
+    assert [c.marker for c in citations] == [1]
+    assert 101 not in store.asked
+
+
+def test_a_store_without_figure_tables_degrades_to_no_figures(hits, models):
+    """An index built before figures existed raises `no such table: figures`.
+    A missing picture must never cost the user a correct, cited answer."""
+    import sqlite3
+
+    store = FakeFigureStore(raises=sqlite3.OperationalError("no such table: figures"))
+    blocks = build_context(hits, models)
+    citations, _ = parse_citations("Tap it [1].", blocks, store=store)
+    assert citations[0].figures == []
+    assert citations[0].snippet  # the citation itself is unharmed
+
+
+def test_figures_reach_the_answer_through_stream(hits, models):
+    generator = make_generator(pieces=["Tap the shutter [1]."])
+    store = FakeFigureStore({100: [_figure()]})
+    answer = list(
+        stream_answer("q", hits, generator, store=store, doc_models=models)
+    )[-1]
+    assert [f.rel_path for f, _ in answer.figures()] == ["figures/abc123/a.png"]
+
+
 # --- citation parsing -----------------------------------------------------
 
 

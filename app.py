@@ -129,6 +129,36 @@ st.caption(
 )
 
 
+# Wide enough to read a settings path in a phone screenshot, narrow enough that
+# a 113x237pt diagram is not blown up past its rendered resolution.
+FIGURE_WIDTH_PX = 260
+
+
+def _render_figures(answer) -> None:
+    """Show the illustrations from the chunks this answer actually cited.
+
+    Nothing renders for a text-only answer, a refusal, or a store built before
+    figures existed — the common case on a manual with few diagrams.
+    """
+    if not answer:
+        return
+    figures = answer.figures()
+    if not figures:
+        return
+
+    columns = st.columns(min(len(figures), 3))
+    for column, (figure, marker) in zip(columns, figures):
+        path = store.figure_path(figure)
+        if not path.exists():
+            # The database and the image directory are swapped together, so
+            # this means someone moved files by hand. Skip it silently rather
+            # than break the answer over a missing picture.
+            continue
+        with column:
+            st.image(str(path), width=FIGURE_WIDTH_PX)
+            st.caption(f"[{marker}] p.{figure.page}")
+
+
 def _render_citations(answer) -> None:
     if not answer or not answer.citations:
         return
@@ -167,6 +197,7 @@ for past in session.turns:
             st.warning(past.error)
         else:
             st.markdown(past.answer.text if past.answer else "")
+            _render_figures(past.answer)
             _render_citations(past.answer)
             _render_readout(past)
 
@@ -194,5 +225,6 @@ if question := st.chat_input("Ask about your Samsung device…"):
             # Re-render from the assembled answer: the refusal sentinel is
             # stripped there, and the streamed text still carries it.
             placeholder.markdown(result.answer.text)
+            _render_figures(result.answer)
             _render_citations(result.answer)
             _render_readout(result)

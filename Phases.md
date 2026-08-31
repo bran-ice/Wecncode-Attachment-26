@@ -455,6 +455,138 @@ the gold set first, then re-measure. Do not "fix" the stale files in the meantim
 
 ---
 
+## Phase 8 — Figures in answers 🔶 *built — 316 tests green; human gate outstanding*
+
+Answers that describe a screen now render the manual's illustration of it. Scope is
+**display only**: figures never enter the grounding context, never reach the embedder,
+and never affect ranking. The generator stays text-only, so every `[n]` still resolves
+to text on a page.
+
+**The decision that shaped the implementation.** Measured on the A05 excerpts before
+writing any code:
+
+| Observation | Consequence |
+|---|---|
+| Most raster XObjects are 6x17–19x11 pt | `page.get_images()` yields status-bar glyphs, not figures |
+| On figure pages the raster and the vector paths share one bbox | Callouts are vector art **over** a raster screenshot |
+| `getting-started` excerpt: 0 rasters, 0 drawings | Whole documents can be figure-free; no-figures is the normal case |
+
+So **regions are rendered, not images extracted** — extracting the embedded image
+returns the photo with none of the callout lines that say where to tap.
+
+**Build**
+- [x] `ingest/figures.py` — detection (`MIN_PT`, `PAGE_FRACTION`, `GAP`,
+      `MAX_WORDS_INSIDE`) and content-addressed PNG rendering at 150 DPI
+- [x] `ingest/parse.py` — figure blocks emitted at their vertical position in reading
+      order, so a figure between two procedures attaches to the one it illustrates
+- [x] `ingest/chunk.py` — a figure contributes no text and no tokens and never triggers
+      a split; it lands on whichever chunk is open when reading order reaches it
+- [x] `core/storage.py` — `figures` + `chunk_figures`; neither touches `chunks`, so the
+      FTS triggers and chunk_id-is-the-vector-id are unaffected
+- [x] Images written **inside** the store root, so `staging_store()` swaps database,
+      index and images together
+- [x] `query/generate.py` — figures attached to **cited** chunks only; a store predating
+      the tables degrades to no figures rather than raising
+- [x] `app.py` — rendered inline beneath the answer, above Sources, deduped, ≤3 columns
+- [x] `--no-figures` for a text-only build
+
+**Tests** — 27 new (23 in `tests/test_figures.py`, 4 in `tests/test_generate.py`)
+- [x] Each detection threshold tested against the failure it prevents: inline icons,
+      full-page background, prose-filled region, near/far clustering, reading order
+- [x] Content-addressing renders one file for identical bytes
+- [x] A vector-only page still yields a figure — the case XObject extraction misses
+- [x] Figures absent from `embed_text()`; chunk text and token counts unchanged by them
+- [x] A figure with no prose around it is dropped rather than drifting to another chunk
+- [x] Storage round trip, one diagram shared by two chunks stored once, cascade delete
+- [x] Uncited chunk contributes no figure; refusal shows none; missing tables degrade
+- [ ] Association accuracy over a real manual — see the gate
+
+**Verified end to end** (2026-08-31, scratch `DATA_ROOT`, live Gemini): 43 chunks
+unchanged, 43/43 embedding cache hits — figures perturbed neither text nor vectors.
+3 figures, 3 chunk links. "how do I take a photo" → the p.10 camera-preview figure;
+"how do I zoom in while taking a picture" → the p.11 zoom figure; "what is the warranty
+period" → refusal, no figures.
+
+**Known false positive.** Of the 3 figures found, 2 are correct and 1 is the decorative
+chapter-opener mark, attached to the "Introduction" chunk. It did not surface in any of
+the three answers above because that chunk was never cited, but it will surface if it
+ever is. **It was left in deliberately**: the obvious filters (page word count, outline
+level, vector-only) would each also drop a legitimate full-page device-layout diagram,
+and these excerpts carry **no PDF outline at all** (`get_toc()` returns 0 entries), so a
+structural rule cannot be validated here. Revisit against a real manual; do not tune the
+thresholds on the placeholder.
+
+**Exit gate:** ⏳ **human, and blocked on corpus.** Sample 20 chunks that carry a figure
+and read whether the picture matches the text — the same kind of gate as Phase 2's
+30-chunk read, and for the same reason: an illustration attached to the wrong procedure
+passes every assertion you could write for it. Three figures across 14 pages is not a
+sample. The thresholds in `ingest/figures.py` are the first thing to revisit when a real
+manual lands.
+
+---
+
+## Corpus replaced (2026-08-31) — real A05 manual
+
+The two placeholder excerpts were deleted and replaced with a single real manual.
+
+| | Placeholder | Now |
+|---|---|---|
+| Source | 2 A05 excerpts, 14 pages | `SM-A055F_UG_EU_Eng_Rev1.0_250507.pdf`, 32 pages |
+| Chunks | 43 | **76** (median 89 tokens) |
+| Figures | 3 (1 decorative) | **9**, on 8 chunks |
+| Embedding | 43 cache hits | 76 new vectors, **2 API calls** |
+| Ingest | 16s | 20s |
+
+**The file had to be renamed.** It arrived as `SM-A05X_E055F_M055F_UG_EU_15_Eng_Rev.1.0_250507(2).pdf`
+and scanned as model `unknown`, which would have printed "unknown" under every
+citation. `_CODE_RE` needs `[SFAN]` + exactly three digits: `A05X` has a wildcard where
+a digit belongs, and `E055F`/`M055F` start outside the letter set. Renamed to
+`SM-A055F_…` so `A055` → "Galaxy A05". **The scanner accepting a file is not the same as
+the scanner understanding it** — check the model it reports, not just that it indexed.
+
+**No PDF outline.** `get_toc()` returns 0 entries, so `parse.py` ran on font heuristics
+alone. It held up better than expected: **0 of 76 chunks have an empty `section_path`**,
+and the names are specific ("Pairing with other Bluetooth devices", "Wi-Fi Direct").
+The cost is that every path is **flat** — one level, no `chapter > section > subsection`
+ancestry — because `_SectionTracker` only builds ancestry from the outline. Citations
+read "Galaxy A05 p.24 — Pairing with other Bluetooth devices" rather than a full path.
+
+**Retrieval spot-check** (5 questions, live): correct section and page on all four
+answerable ones, clean refusal on "battery capacity in mAh" (the manual has no specs
+table). No hallucinated citations.
+
+### Figure association: the finding that matters
+
+Figures land where the manual puts them, which is **not** where the answer usually
+comes from. Samsung places the illustration under the section *intro*; a "how do I…"
+question cites the *procedure* subsection beneath it. Measured:
+
+| Question | Cited | Figure? |
+|---|---|---|
+| "how do I use split screen with two apps" | `Launching Multi window` | ✗ |
+| "what is multi window and what views does it support" | `Multi window` | ✓ 2 |
+| "how do I delete photos from the gallery" | `Deleting images or videos` | ✗ |
+| "what can I do in the Gallery app" | `Using Gallery`, `Viewing images` | ✓ 2 |
+| "how do I browse the internet" | `Samsung Internet` | ✓ 1 |
+
+The association is *literally* correct — the figure is physically in the intro chunk —
+but under the cited-chunks-only rule, figures fire on "what is X" and often miss on
+"how do I X", which is the more common question.
+
+**Decision (2026-08-31): keep it strict. Do not extend figures to sibling chunks under
+the same parent section.** A figure renders only on the chunk it physically sits in, and
+only when that chunk is cited. Missing an illustration is a cosmetic loss; showing one
+next to a procedure it does not depict is a claim the manual never made, and it would
+carry the same visual authority as the cited text. Spreading a figure across siblings
+also breaks the property that makes the current rule defensible — that a rendered figure
+is always physically part of the passage the answer used.
+
+Do not re-open this as a "figures rarely show" bug. The low hit rate is the intended
+cost. If it is ever revisited, the lever is **chunking** — the figure and the procedure
+it illustrates landing in one chunk — not a looser figure-to-chunk mapping.
+
+---
+
 ## Corpus reset (2026-08-20)
 
 The 28-manual corpus was deleted at the user's request and replaced with a placeholder

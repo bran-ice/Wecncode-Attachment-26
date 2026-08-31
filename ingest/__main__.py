@@ -24,6 +24,7 @@ from core.storage import staging_store
 from ingest.acquire import load_manifest
 from ingest.chunk import chunk_document
 from ingest.embed import BATCH_SIZE, EmbeddingCache, build_embedder
+from ingest.figures import figure_out_dir
 from ingest.parse import parse_pdf
 
 log = get_logger(__name__)
@@ -36,6 +37,11 @@ def main(argv: list[str] | None = None) -> int:
         "--dry-run", action="store_true", help="parse and chunk only; no API calls"
     )
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
+    parser.add_argument(
+        "--no-figures",
+        action="store_true",
+        help="skip figure detection and rendering (text-only store)",
+    )
     args = parser.parse_args(argv)
 
     settings = load_settings(require_api_key=False)
@@ -52,41 +58,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.limit:
         records = records[: args.limit]
 
-    # Parse and chunk everything first: it is free, and a failure here should
-    # surface before any Gemini quota is spent.
-    documents: list[Document] = []
-    chunks_by_doc = []
-    for record in records:
-        pdf = settings.raw_dir / record.filename
-        if not pdf.exists():
-            log.warning("Missing %s — skipping", record.filename)
-            continue
-        parsed = parse_pdf(pdf)
-        chunks = chunk_document(parsed, doc_id=record.doc_id)
-        if not chunks:
-            log.warning("No chunks from %s — skipping", record.filename)
-            continue
-        documents.append(
-            Document(
-                doc_id=record.doc_id,
-                model=record.model,
-                title=record.title,
-                url=record.url,
-                sha256=record.sha256,
-                n_pages=record.n_pages,
-                language=record.language,
-                region=record.region,
-                os_version=record.os_version,
-            )
-        )
-        chunks_by_doc.append(chunks)
-
-    total = sum(len(c) for c in chunks_by_doc)
-    log.info("Parsed %d manuals into %d chunks", len(documents), total)
-    if not total:
-        log.error("Nothing to index.")
-        return 1
-
     cache = EmbeddingCache(settings.data_root / "cache" / "embeddings.db")
     embedder = None
     if not args.dry_run:
@@ -97,19 +68,72 @@ def main(argv: list[str] | None = None) -> int:
             else settings.local_embed_model,
         )
 
+    # Parsing runs inside the staging context because figures are rendered as
+    # PNGs into the store directory, and only the staging root is swapped
+    # atomically — images written anywhere else would survive a failed ingest
+    # and no longer match the store that is serving. Embedding still happens
+    # after every manual has parsed, so a parse failure costs no quota.
     with staging_store(settings.store_dir) as store:
         store.set_meta("embed_model", settings.embed_model)
         store.set_meta("chunker", "section-aware v1")
 
+        documents: list[Document] = []
+        chunks_by_doc = []
+        for record in records:
+            pdf = settings.raw_dir / record.filename
+            if not pdf.exists():
+                log.warning("Missing %s — skipping", record.filename)
+                continue
+            parsed = parse_pdf(
+                pdf,
+                figure_dir=(
+                    None if args.no_figures
+                    else figure_out_dir(store.root, record.doc_id)
+                ),
+            )
+            chunks = chunk_document(parsed, doc_id=record.doc_id)
+            if not chunks:
+                log.warning("No chunks from %s — skipping", record.filename)
+                continue
+            documents.append(
+                Document(
+                    doc_id=record.doc_id,
+                    model=record.model,
+                    title=record.title,
+                    url=record.url,
+                    sha256=record.sha256,
+                    n_pages=record.n_pages,
+                    language=record.language,
+                    region=record.region,
+                    os_version=record.os_version,
+                )
+            )
+            chunks_by_doc.append(chunks)
+
+        total = sum(len(c) for c in chunks_by_doc)
+        log.info("Parsed %d manuals into %d chunks", len(documents), total)
+        if not total:
+            log.error("Nothing to index.")
+            raise SystemExit(1)  # discards the staging directory
+
         all_ids: list[int] = []
         all_texts: list[str] = []
+        links = 0
         for document, chunks in zip(documents, chunks_by_doc):
             store.add_document(document)
             ids = store.add_chunks(chunks)
+            links += store.add_chunk_figures(chunks)
             all_ids.extend(ids)
             all_texts.extend(c.embed_text() for c in chunks)
 
-        log.info("Wrote %d chunks to %s", len(all_ids), store.db_path.name)
+        log.info(
+            "Wrote %d chunks to %s (%d figures, %d chunk links)",
+            len(all_ids),
+            store.db_path.name,
+            store.count_figures(),
+            links,
+        )
+        n_figures = store.count_figures()
 
         if args.dry_run:
             log.info("Dry run: skipping embeddings and vector index")
@@ -132,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     log.info("Store built in %.0fs -> %s", elapsed, settings.store_dir)
     print(
         f"\n{len(documents)} manuals, {total} chunks"
+        + (f", {n_figures} figures" if n_figures else "")
         + ("" if args.dry_run else f", {embedder.dim}-dim vectors")
         + f" in {settings.store_dir}"
     )
