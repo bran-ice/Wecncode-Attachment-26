@@ -1,0 +1,12 @@
+name = "Alice"
+print(name.upper())
+print(name.lower())
+print(name)
+
+greeting = "Hello, World 123!"
+print(greeting.upper())
+print(greeting.lower())
+
+product_code = "abC-123"
+print(product_code .upper())
+print(product_code .lower())

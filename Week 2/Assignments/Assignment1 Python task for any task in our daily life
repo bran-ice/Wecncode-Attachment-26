@@ -1,0 +1,28 @@
+print("--- My Daily Task Priority Manager ---")
+
+# Check for the Samsung Innovation Bootcamp
+day = input("Is today a weekday? (yes/no): ").lower()
+
+if day == "yes":
+    print("\n--- MANDATORY ---")
+    print("1. Attend Samsung Innovation Campus Bootcamp.")
+    print("---")
+else:
+    print("\n--- Weekend: No Samsung Innovation Bootcamp Scheduled ---")
+
+# Other tasks
+task1 = input("Enter Task 1: ")
+urgency1 = int(input(f"Urgency of '{task1}' (1-10): "))
+
+task2 = input("Enter Task 2: ")
+urgency2 = int(input(f"Urgency of '{task2}' (1-10): "))
+
+# Decision Logic: Sort the remaining tasks based on Urgency
+print("\n--- YOUR FINAL SCHEDULE ---")
+
+if urgency1 >= urgency2:
+    print(f"Next: {task1}")
+    print(f"Followed by: {task2}")
+else:
+    print(f"Next: {task2}")
+    print(f"Followed by: {task1}")

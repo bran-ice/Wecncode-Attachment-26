@@ -1,0 +1,25 @@
+grid = [
+    [1, 2, 3],
+    [4, 5, 6]
+]
+for row in grid:
+    for item in row:
+        print(item)
+grid = [
+    [1, 2],
+    [],
+    [3, 4, 5]
+]
+for row in grid:
+    for item in row:
+        print(item)
+
+grid = [
+    [1, 2, 3],
+    ["pens", "books", "pencils"]
+]
+total = 0
+for row in grid:
+    for item in row:
+        total += 1
+print(total)

@@ -1,0 +1,20 @@
+name = "Aisha"
+age = 28
+message = f"Hello, {name}! You are {age} years old."
+print(message)
+name = "Aisha"
+age = 28
+message = f"Next year, {name} will be {age + 1} years old."
+print(message)
+item = "Notebook"
+quantity = 3
+price_per_item = 4.50
+line = f"{quantity} x {item} = ${quantity * price_per_item}"
+print(line)
+
+clients_name = "Branice" 
+distance = 55
+total_time = 60
+average_pace = total_time / distance
+line = f"{clients_name} ran {distance} miles in {total_time} minutes. The average pace per mile was {average_pace}."
+print(line)

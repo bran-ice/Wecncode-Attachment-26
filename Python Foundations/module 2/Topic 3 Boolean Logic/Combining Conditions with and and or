@@ -1,0 +1,33 @@
+age = 20
+has_id = True
+
+is_adult_with_id = age >= 18 and has_id is True
+has_free_pass = age < 13 or age > 65
+
+print("is_adult_with_id:", is_adult_with_id)
+print("has_free_pass:", has_free_pass)
+
+age = 12
+has_id = False
+
+is_adult_with_id = age >= 18 and has_id is True
+has_free_pass = age < 13 or age > 65
+
+print("is_adult_with_id:", is_adult_with_id)
+print("has_free_pass:", has_free_pass)
+
+age = 22
+on_guest_list = False
+enter_permission = age >= 21 and on_guest_list is True
+discount = age < 12 or age > 65 
+print("Enter permission:" , enter_permission )
+print("Discount:" , discount)
+
+years_of_service = 10
+is_manager = False
+
+eligible_bonus = years_of_service >= 5 and is_manager is True
+early_retirement = years_of_service < 3 or years_of_service > 30
+
+print("eligible_bonus:", eligible_bonus)
+print("early_retirement:", early_retirement)

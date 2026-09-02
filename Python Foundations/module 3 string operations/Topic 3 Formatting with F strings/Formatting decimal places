@@ -1,0 +1,19 @@
+price = 5
+tax = 0.075
+total = price * (1 + tax)
+
+print(f"Price: ${price:.2f}")
+print(f"Tax rate: {tax:.2f}")
+print(f"Total: ${total:.2f}")
+
+price = 2.3456
+tax = 0.0825
+total = price * (1 + tax)
+
+print(f"Price: ${price:.2f}")
+print(f"Tax rate: {tax:.2f}")
+print(f"Total: ${total:.2f}")
+
+purchase_price = 1500.557
+cash_tendered = 2000.00
+print(f"Change: {cash_tendered - purchase_price: .2f}")

@@ -1,0 +1,17 @@
+price = 19.99
+tax = 1.50
+total = price + tax
+
+budget = 30.00
+remaining = budget - total
+
+print(total, type(total))
+print(remaining, type(remaining))
+
+purchase_1 = 15.57
+purchase_2 = 22.50
+total_purchase = purchase_1 + purchase_2
+budget = 120
+remaining = budget - total_purchase
+print(total_purchase, type(total_purchase))
+print(remaining, type(remaining))

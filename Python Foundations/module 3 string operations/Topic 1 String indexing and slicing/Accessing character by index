@@ -1,0 +1,7 @@
+name = "Alice"
+print(name[0])
+print(name[-1])
+
+ID  = "416556"
+print(ID[2])
+print(ID[-1])

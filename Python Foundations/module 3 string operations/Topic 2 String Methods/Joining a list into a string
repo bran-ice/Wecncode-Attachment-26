@@ -1,0 +1,10 @@
+tags = ["python", "code", "learning"]
+result = ", ".join(tags)
+print(result)
+tags = ["python", "code", "learning"]
+result = "".join(tags)
+print(result)
+
+phone_number = ["123", "456", "7890"]
+result = "-".join(phone_number)
+print(result)

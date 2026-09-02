@@ -1,0 +1,14 @@
+population = 1000000
+revenue = 1234567890
+
+print(f"Population: {population:,}")
+print(f"Revenue: ${revenue:,}")
+population = 9876543210
+sales = 1234567.89
+
+print(f"Population: {population:,}")
+print(f"Sales: ${sales:,}")
+
+donors = 4321
+funds_raised = 1250000
+print(f"Donors: {donors:,}, Funds raised: ${funds_raised:,}")

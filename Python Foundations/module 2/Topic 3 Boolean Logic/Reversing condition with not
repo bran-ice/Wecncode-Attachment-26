@@ -1,0 +1,16 @@
+is_raining = False
+
+if not is_raining:
+    print("Let's go outside!")
+else:
+    print("Stay inside and bring an umbrella.")
+
+print("not is_raining ->", not is_raining)
+
+subscribed = True
+
+if not subscribed:
+    print("Signup prompt")
+else:
+    print("Already subscribed")
+print("not subscribed:" , not subscribed)

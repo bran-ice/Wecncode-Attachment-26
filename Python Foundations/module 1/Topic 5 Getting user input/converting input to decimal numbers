@@ -1,0 +1,14 @@
+price = float(input("Enter the price: "))
+total = price * 3
+print("Price:", price)
+print("Total for 3 items:", total)
+price = float(input("Enter the price: "))
+tax_rate = 0.07
+final_price = price + price * tax_rate
+print("Price:", price)
+print("Final price with 7% tax:", final_price)
+
+price = float(input("Enter the price per litre of gasoline"))
+litres = float(input("how many litres were bought"))
+total_cost = price * litres
+print("The total cost is: " , total_cost)

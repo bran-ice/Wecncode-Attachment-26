@@ -1,0 +1,37 @@
+seat_zone = input("What is your seat zone? (VIP/Floor/Balcony) ").strip().lower()
+
+if seat_zone == "vip":
+    base_price = 5000
+elif seat_zone == "floor":
+    base_price = 3000
+elif seat_zone == "balcony":
+    base_price = 1200
+else:
+    print("Invalid entry error")
+    base_price = 0  
+
+current_price = base_price
+surcharge = 0
+discount = 0
+concert_day = input("Is the concert on a weekend? (yes/no)")
+status = input("is the buyer a student? (yes/on)")
+concert_day_normalised = concert_day .strip() .lower()
+status_normalised = status .strip() .lower()
+
+if concert_day_normalised == "yes":
+    surcharge = base_price * 0.25
+    current_price += surcharge  
+
+if status_normalised == "yes":
+    discount = current_price * 0.15
+    current_price -= discount  
+    
+
+print("----- Receipt -----")
+print(f"Zone: {seat_zone.title()}")
+print(f"Base price: ${base_price:.2f}")
+if surcharge:
+    print(f"Weekend surcharge: +${surcharge:.2f}")
+if discount:
+    print(f"Student discount: -${discount:.2f}")
+print(f"Final price: ${current_price:.2f}")

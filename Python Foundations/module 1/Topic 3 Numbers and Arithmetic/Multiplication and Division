@@ -1,0 +1,18 @@
+price = 4.50
+quantity = 3
+cost = price * quantity
+
+total = 27.0
+count = 4
+average = total / count
+
+print(cost, type(cost))
+print(average, type(average))
+
+photos = 12
+albums = 7
+total_photos = photos * albums
+count = 5
+avarage = total_photos / count
+print(total_photos, type(total_photos))
+print(avarage, type(avarage ))

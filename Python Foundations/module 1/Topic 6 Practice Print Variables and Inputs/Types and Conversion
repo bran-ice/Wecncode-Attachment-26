@@ -1,0 +1,6 @@
+product_name = "Espresso Mug"
+sold = 24
+rating = 4.7
+print("Product:" , product_name , type(product_name))
+print("Sold:" , sold , type(sold))
+print("Rating:" , rating , type(rating))

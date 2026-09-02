@@ -1,0 +1,17 @@
+Branice: 3500Alice: 1500
+Bob: 2000
+Alice: 1500
+Bob: 2000
+Alice: 1500
+Bob: 2000
+Eve: 1750
+Alice: 1500
+Bob: 2000
+Eve: 1750
+Alice: 1500
+
+Bob: 2000
+Eve: 1750
+Alice: 1500
+Bob: 2000
+Eve: 1750

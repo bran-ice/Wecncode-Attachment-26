@@ -1,0 +1,3 @@
+This is my weekly evaluation.
+I covered python foundation module 7.
+It was also a bonus week where we focused on personal branding both on linkedin and github

@@ -1,0 +1,20 @@
+print(2 ** 3)
+side = 5
+area = side ** 2
+print(area)
+
+print(3 ** 4)
+side = 7
+print(side ** 2)
+print(2 ** 0)
+
+bacteria = 3
+growth_factor = 2
+hours = 6
+total = bacteria * (growth_factor ** hours)
+print(total)
+
+side = 2
+scale = 3
+scaled_side = side * scale
+volume  = scaled_side ** 3

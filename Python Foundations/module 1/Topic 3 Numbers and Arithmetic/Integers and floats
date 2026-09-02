@@ -1,0 +1,19 @@
+age = 25
+price = 9.99
+
+print(age, type(age))
+print(price, type(price))
+
+count = 3
+cost = 2.50
+
+total = count * cost
+print(total, type(total))
+number_laps = 3
+
+lap_time = 3.5
+total_time = number_laps * lap_time
+
+print(number_laps, type(number_laps))
+print(lap_time, type(lap_time))
+print(total_time, type(total_time))

@@ -1,0 +1,10 @@
+age = 18
+score = 50
+print(age >= 18)
+print(score <= 50)
+age = 17
+score = 50
+print(age >= 18)
+print(score <= 50)
+days_since_purchase = 200
+print(days_since_purchase <= 365)

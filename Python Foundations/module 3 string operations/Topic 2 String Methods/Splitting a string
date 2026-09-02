@@ -1,0 +1,13 @@
+row = "apple,banana,cherry"
+items = row.split(",")
+print(items)
+sentence = "Split this sentence into words"
+words = sentence.split(" ")
+print(words)
+email = "alice@example.com"
+parts = email.split("@")
+print(parts)
+
+link = "name=alice&age=30&city=NY"
+list =  link.split("&")
+print(list)

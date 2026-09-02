@@ -1,0 +1,8 @@
+is_logged_in = True
+has_paid = False
+print(is_logged_in)
+print(has_paid)
+dark_mode_enabled = True
+notifications_blocked = False
+print(dark_mode_enabled)
+print(notifications_blocked)

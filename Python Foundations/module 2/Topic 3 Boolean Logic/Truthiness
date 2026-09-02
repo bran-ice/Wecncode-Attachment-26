@@ -1,0 +1,63 @@
+value = 0
+if value:
+    print("0 is treated as True")
+else:
+    print("0 is treated as False")
+
+value = ""
+if value:
+    print('"" is True')
+else:
+    print('"" is False')
+
+value = []
+if value:
+    print("[] is True")
+else:
+    print("[] is False")
+
+value = None
+if value:
+    print("None is True")
+else:
+    print("None is False")
+
+value = 7
+if value:
+    print("7 is treated as True")
+else:
+    print("7 is treated as False")
+
+value = "hello"
+if value:
+    print('"hello" is treated as True')
+else:
+    print('"hello" is treated as False')
+
+    value = 0.0
+if value:
+    print("0.0 is treated as True")
+else:
+    print("0.0 is treated as False")
+
+value = " "
+if value:
+    print('" " (a space) is treated as True')
+else:
+    print('" " (a space) is treated as False')
+
+value = [0]
+if value:
+    print("[0] is treated as True")
+else:
+    print("[0] is treated as False")
+
+    value = 0.0
+print("bool(0.0) ->", bool(value))
+if value:
+    print("branch: True")
+else:
+    print("branch: False")
+
+value = "0.0"
+print('bool("0.0") ->', bool(value))
