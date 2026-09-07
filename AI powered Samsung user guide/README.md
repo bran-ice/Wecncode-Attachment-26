@@ -224,9 +224,9 @@ of the corpus. The gold set needs rebuilding against a real manual first.
 
 ## Documents
 
-- [`Implementation.md`](./Implementation.md) — architecture, decisions, risks
+- [`Implementation.md`](../Implementation.md) — architecture, decisions, risks (repo root)
 - [`Phases.md`](./Phases.md) — per-phase build checklist, tests, and exit gates
-- [`CHUNKING.md`](./CHUNKING.md) — how a PDF becomes retrievable chunks
+- [`CHUNKING.md`](../CHUNKING.md) — how a PDF becomes retrievable chunks (repo root)
 - [`PIPELINE.html`](./PIPELINE.html) — data-flow diagrams, embeddings, and retrieval (open in a browser)
 
 ## Notes
