@@ -34,18 +34,22 @@ that commit also left **conflict markers in `AI powered Samsung user guide/.giti
   `./CHUNKING.md` — those two links are still broken.
 - **`.venv/` is at the root**, so from inside the project folder the interpreter is
   `../.venv/Scripts/python.exe`.
-- **`data/` is still in git history and still on the remote.** 14 files / 2.6 MB were
-  committed under the root `data/` — including
+- **`data/` was committed and pushed; history has been rewritten to remove it.**
+  14 files / 2.6 MB lived under the root `data/` — including
   `SM-A055F_UG_EU_Eng_Rev1.0_250507.pdf` (Samsung's copyrighted manual), `corpus.db`,
   `index.faiss`, the embedding cache and the extracted figure PNGs — in violation of the
   project's own "never commit `data/`" rule. It happened because the repo had no root
   `.gitignore` while the project's own one covered only its subtree.
 
-  Fixed as far as it can be without a rewrite (2026-09-07): a root `.gitignore` now
-  matches `data/`, and `git rm -r --cached data/` untracked all 14 files, so they are
-  absent from new commits. **The blobs remain reachable in history and on
-  `origin/main` (`bran-ice/Wecncode-Attachment-26`)** — clearing those needs a
-  `git filter-repo` rewrite and a force-push, which has not been done.
+  Cleaned 2026-09-07: root `.gitignore` added, `git rm -r --cached data/`, then
+  `git filter-repo --invert-paths --path data/` and a force-push. `data/` now appears in
+  zero commits, all 81 original commit messages survive in order, and 35 commit hashes
+  changed — **any pre-2026-09-07 commit SHA for this repo is dead.**
+
+  **The old blobs are still served by GitHub.** Unreachable objects survive until
+  GitHub garbage-collects, and fetching the old SHA `1f47206` by hand still returns the
+  1,058,931-byte PDF. Only GitHub Support can purge them. Until they confirm, treat the
+  manual as having been publicly exposed.
 
 ## Commands
 
