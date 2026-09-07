@@ -1,0 +1,31 @@
+# Repo-wide ignores. The RAG project has its own .gitignore in
+# "AI powered Samsung user guide/" for rules specific to that subtree.
+
+# Samsung's manuals are copyrighted and are not redistributed; the store, the
+# embedding cache and the extracted figures are all rebuildable from them via
+# `python -m ingest`. Nothing under data/ belongs in the repo.
+#
+# NOTE: data/ is currently *tracked* despite this rule — see the root CLAUDE.md.
+# An ignore rule does not untrack an already-committed path.
+data/
+
+# Environments and caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Secrets and machine-local notes
+.env
+CLAUDE.local.md
+
+# Logs
+logs/
+*.log
+
+# OS cruft
+Thumbs.db
+desktop.ini
+.DS_Store

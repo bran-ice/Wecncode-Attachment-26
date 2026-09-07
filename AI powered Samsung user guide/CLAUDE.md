@@ -4,12 +4,18 @@ Guidance for Claude Code when working in this repository.
 
 ## What this is
 
-A hybrid RAG system over Samsung Galaxy user manuals. Read [`Implementation.md`](./Implementation.md)
+A hybrid RAG system over Samsung Galaxy user manuals. Read [`Implementation.md`](../Implementation.md)
 for architecture and [`Phases.md`](./Phases.md) for the build checklist — **`Phases.md` is
 the source of truth for what's done and what's next.** Check the boxes as you complete
 work, and record what a phase's exit gate actually showed.
 
-[`CHUNKING.md`](./CHUNKING.md) explains how a PDF becomes retrievable chunks — read it
+**The source lives in this folder but `data/`, `.venv/`, `Implementation.md` and
+`CHUNKING.md` are one level up**, at the repo root — commit `1f47206` (2026-09-02) moved
+the code and left them behind. That is why doc links and interpreter paths here point
+outward, and why `.env` sets `DATA_ROOT=../data`: without it `PROJECT_ROOT/data` does not
+exist and everything reports "no store". The root `CLAUDE.md` has the rest.
+
+[`CHUNKING.md`](../CHUNKING.md) explains how a PDF becomes retrievable chunks — read it
 before touching `ingest/chunk.py`. [`PIPELINE.html`](./PIPELINE.html) holds the data-flow
 diagrams (open in a browser).
 
@@ -52,19 +58,21 @@ The notes below were written for the deleted placeholder corpus. What still hold
 
 ## Commands
 
+Run from this folder. The venv is at the **repo root**, hence `../`.
+
 ```powershell
-.venv/Scripts/streamlit.exe run app.py                   # the chat UI — the actual product
-.venv/Scripts/python.exe -m pytest -m "not live"        # default suite
-.venv/Scripts/python.exe -m pytest tests/test_retrieve.py::test_name   # one test
-.venv/Scripts/python.exe -m ingest.acquire --scan        # local PDFs -> catalog/manifest.json
-.venv/Scripts/python.exe -m ingest                       # build the store
-.venv/Scripts/python.exe -m ingest --dry-run --limit 2   # parse+chunk only, no API
-.venv/Scripts/python.exe -m ingest --no-figures          # text-only store
-.venv/Scripts/python.exe -m scripts.ask "how do I enable always on display"
-.venv/Scripts/python.exe -m scripts.ask --mode bm25 "EP-TA845"   # or --mode dense
-.venv/Scripts/python.exe -m scripts.ask --answer "how do I take a screenshot"  # cited answer
-.venv/Scripts/python.exe -m scripts.dump_chunks --sample 30      # Phase 2 human gate
-.venv/Scripts/python.exe -m eval.run_eval                # full ablation → eval/RESULTS.md
+../.venv/Scripts/streamlit.exe run app.py                 # the chat UI — the actual product
+../.venv/Scripts/python.exe -m pytest -m "not live"       # default suite
+../.venv/Scripts/python.exe -m pytest tests/test_retrieve.py::test_name   # one test
+../.venv/Scripts/python.exe -m ingest.acquire --scan      # local PDFs -> catalog/manifest.json
+../.venv/Scripts/python.exe -m ingest                     # build the store
+../.venv/Scripts/python.exe -m ingest --dry-run --limit 2 # parse+chunk only, no API
+../.venv/Scripts/python.exe -m ingest --no-figures        # text-only store
+../.venv/Scripts/python.exe -m scripts.ask "how do I enable always on display"
+../.venv/Scripts/python.exe -m scripts.ask --mode bm25 "EP-TA845"   # or --mode dense
+../.venv/Scripts/python.exe -m scripts.ask --answer "how do I take a screenshot"  # cited answer
+../.venv/Scripts/python.exe -m scripts.dump_chunks --sample 30      # Phase 2 human gate
+../.venv/Scripts/python.exe -m eval.run_eval              # full ablation → eval/RESULTS.md
 ```
 
 `scripts/` is for iterating on retrieval without the UI; it is throwaway, not API.
@@ -79,8 +87,8 @@ can't identify as English, so `Samsung A05.pdf` is dropped while
 
 ## Environment
 
-- Windows, PowerShell. A venv lives at `.venv/` — use `.venv/Scripts/python.exe`
-  explicitly rather than assuming an activated shell.
+- Windows, PowerShell. A venv lives at the **repo root** `.venv/` — use
+  `../.venv/Scripts/python.exe` explicitly rather than assuming an activated shell.
 - Python 3.14. Check wheel availability before adding a dependency; several ML packages
   lag on new Python versions.
 - `pytest -m "not live"` is the default suite: fast, free, no network.
@@ -160,7 +168,9 @@ from the cause.
 - Prefer **relative** assertions for retrieval quality (hybrid beats each half alone) over
   absolute thresholds — absolute numbers depend on the corpus and will make the suite
   brittle. Don't assert that rerank improves MRR; measurement says it doesn't.
-- The default suite is 316 tests on this machine. Most of the wall time is antivirus
+- The default suite is 317 tests on this machine. It builds its own fixtures and never
+  reads the real store, so a green run says nothing about whether the app can find its
+  data — check that separately after touching paths or `DATA_ROOT`. Most of the wall time is antivirus
   scanning the venv during import, not tests running — it is not a regression. If a run
   takes many minutes, clear `%LOCALAPPDATA%\Temp\pytest-of-brani` before assuming a hang;
   accumulated temp dirs have pushed a green suite past ten minutes.
@@ -174,13 +184,15 @@ Defaults live in `core/config.Settings`, but **what actually runs is `.env`**, w
 overrides them and is gitignored. Check `.env` before reasoning about behaviour — the
 defaults in `config.py` are no longer what the system uses.
 
-Currently live (set in `.env`, 2026-08-20):
+Currently live (set in `.env`; embedding/generation rows 2026-08-20, `data_root`
+2026-09-07):
 
 | | `config.py` default | `.env` override |
 |---|---|---|
 | `embed_backend` | `local` | **`gemini`** |
 | `embed_model` | `gemini-embedding-001` | same (not overridden) |
 | `gen_model` | `gemini-3.7-flash` | **`gemini-3.5-flash-lite`** |
+| `data_root` | `PROJECT_ROOT/data` | **`../data`** (repo root — see above) |
 
 The env vars `load_settings()` actually reads are `GEMINI_API_KEY`, `DATA_ROOT`,
 `EMBED_MODEL`, `EMBED_BACKEND`, `LOCAL_EMBED_MODEL`, `GEN_MODEL`, `RERANK`,

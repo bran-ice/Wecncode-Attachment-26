@@ -1,6 +1,4 @@
-<<<<<<< HEAD
 .env
-.venv/
 CLAUDE.local.md
 data/
 logs/
@@ -11,6 +9,3 @@ __pycache__/
 # Resume state for the generation eval, not a result. Rebuildable, and it pins
 # answers to whatever corpus was on disk when the sweep ran.
 eval/generation_checkpoint.json
-=======
-AI powered Samsung user guide/data/
->>>>>>> 44f7ad4c9ba88c775c4e8dda9eaa3bdbaad4ba72
