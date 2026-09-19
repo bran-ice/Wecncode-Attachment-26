@@ -19,7 +19,7 @@ from ingest.embed import build_embedder
 from query.generate import build_generator, estimate_cost
 from query.session import INGEST_COMMAND, ChatSession, check_store_ready
 
-st.set_page_config(page_title="Samsung Manual RAG", page_icon="📱", layout="centered")
+st.set_page_config(page_title="SamRAG", page_icon="📱", layout="centered")
 
 MODES = ["hybrid", "bm25", "dense"]
 MODE_HELP = {
@@ -122,7 +122,7 @@ if mode in ("hybrid", "dense") and session.embedder is None:
 
 # --- history --------------------------------------------------------------
 
-st.title("Samsung Manual RAG")
+st.title("SamRAG")
 st.caption(
     "Answers come only from the indexed manuals, with a page citation for every "
     "claim. When the manuals don't cover it, it says so."
